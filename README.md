@@ -45,7 +45,19 @@ Do not uninstall the app before updating: uninstalling deletes the recipes store
 - Without a key the app still works, just without AI features.
 
 ## Syncing between devices
-Each device keeps its own recipes. To move changes:
+### Home Wi-Fi sync (automatic)
+Devices talk directly to each other over the home Wi-Fi, with no cloud and no account (the same idea as Murmur).
+1. On the Mac: **⚙ Settings → Home sync (Wi-Fi) → Create a home network**. A QR code and 24 words appear.
+2. On the tablet: **⚙ Settings → Home sync (Wi-Fi) → Join a network → Scan QR code** (or type the words).
+3. Keep both apps open on the same Wi-Fi. Recipes, pictures, marks and the assistant memory sync by themselves:
+   when the app opens, after every change and every 15 seconds. The API key is never synced.
+
+The Mac asks once to allow devices on the local network: choose **Allow**. Treat the QR code and the words like a
+password. Technically: Bonjour (`_cookassist._tcp`) finds the devices, every message is encrypted with AES-256-GCM
+using a key derived from the shared 32-byte secret, and merging keeps the newest version of each recipe.
+
+### Sync file (manual, also a backup)
+Each device keeps its own recipes. To move changes by hand:
 **⚙ Settings → Save sync file** on one device (Android opens the share menu: save to Drive, send by email…;
 Mac asks where to save) → get the file to the other device → **Load and merge file** there.
 Merging adds new recipes, keeps the newer version of each recipe and removes recipes deleted on the other device.

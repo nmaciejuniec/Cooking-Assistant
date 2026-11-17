@@ -60,6 +60,74 @@ ipcMain.handle('fetchBinary', async (_e, url) => {
   }
 });
 
+// ---- home Wi-Fi sync: finds other Cooking Assistant devices (Bonjour) and moves encrypted messages over TCP.
+// The page encrypts and decrypts everything; this part never sees recipes in plain form.
+const net = require('node:net');
+const lan = { server: null, bonjour: null, browser: null, pending: new Map(), seq: 0, sender: null, refresh: null };
+const MAX_FRAME = 64 * 1024 * 1024;
+function frame(str) { const b = Buffer.from(String(str), 'utf8'); const h = Buffer.alloc(4); h.writeUInt32BE(b.length); return Buffer.concat([h, b]); }
+function readFrame(sock, ms) {
+  return new Promise((resolve, reject) => {
+    const chunks = []; let got = 0, need = -1, done = false;
+    const end = (err, val) => { if (done) return; done = true; clearTimeout(t); err ? reject(err) : resolve(val); };
+    const t = setTimeout(() => { end(new Error('timeout')); sock.destroy(); }, ms);
+    sock.on('data', (d) => {
+      chunks.push(d); got += d.length;
+      if (need < 0 && got >= 4) { need = Buffer.concat(chunks).readUInt32BE(0); if (need > MAX_FRAME) { end(new Error('too big')); sock.destroy(); return; } }
+      if (need >= 0 && got >= 4 + need) end(null, Buffer.concat(chunks).subarray(4, 4 + need).toString('utf8'));
+    });
+    sock.on('error', (e) => end(e));
+    sock.on('close', () => end(new Error('closed')));
+  });
+}
+function lanStop() {
+  clearInterval(lan.refresh); lan.refresh = null;
+  try { if (lan.browser) lan.browser.stop(); } catch (e) { }
+  try { if (lan.bonjour) { lan.bonjour.unpublishAll(); lan.bonjour.destroy(); } } catch (e) { }
+  try { if (lan.server) lan.server.close(); } catch (e) { }
+  lan.browser = lan.bonjour = lan.server = null;
+}
+ipcMain.handle('lanStart', async (e, { netId, deviceId }) => {
+  lanStop();
+  lan.sender = e.sender;
+  lan.server = net.createServer(async (sock) => {
+    try {
+      const data = await readFrame(sock, 30000);
+      const id = ++lan.seq;
+      const reply = await new Promise((res) => { lan.pending.set(id, res); setTimeout(() => res(null), 90000); if (!lan.sender.isDestroyed()) lan.sender.send('lan-request', { id, data }); });
+      lan.pending.delete(id);
+      if (reply) sock.end(frame(reply)); else sock.destroy();
+    } catch (err) { sock.destroy(); }
+  });
+  await new Promise((res, rej) => { lan.server.once('error', rej); lan.server.listen(0, res); });
+  const port = lan.server.address().port;
+  const { Bonjour } = require('bonjour-service');
+  lan.bonjour = new Bonjour();
+  lan.bonjour.publish({ name: 'ca-' + deviceId, type: 'cookassist', port, txt: { n: String(netId), d: String(deviceId), v: '1' } });
+  const seen = (svc) => {
+    const t = (svc && svc.txt) || {};
+    if (t.n !== netId || !t.d || t.d === deviceId) return;
+    const host = (svc.addresses || []).find(a => /^\d+\.\d+\.\d+\.\d+$/.test(a)) || (svc.referer && svc.referer.address);
+    if (host && lan.sender && !lan.sender.isDestroyed()) lan.sender.send('lan-peer', { deviceId: t.d, host, port: svc.port });
+  };
+  lan.browser = lan.bonjour.find({ type: 'cookassist' }, seen);
+  lan.refresh = setInterval(() => { try { lan.browser.update(); } catch (err) { } }, 30000);
+  return { port };
+});
+ipcMain.handle('lanStop', async () => { lanStop(); return true; });
+ipcMain.on('lanReply', (_e, { id, data }) => { const r = lan.pending.get(id); if (r) r(data ? String(data) : null); });
+ipcMain.handle('lanRequest', async (_e, { host, port, data }) => new Promise((resolve) => {
+  const sock = net.connect({ host: String(host), port: Number(port) });
+  const t = setTimeout(() => { sock.destroy(); resolve({ error: 'timeout' }); }, 6000);
+  sock.once('error', (err) => { clearTimeout(t); resolve({ error: String(err.message) }); });
+  sock.once('connect', () => {
+    clearTimeout(t);
+    sock.write(frame(data));
+    readFrame(sock, 90000).then((d) => { resolve({ data: d }); sock.end(); }, (err) => resolve({ error: String(err.message) }));
+  });
+}));
+app.on('before-quit', lanStop);
+
 app.whenReady().then(() => {
   if (process.platform === 'darwin') Menu.setApplicationMenu(Menu.buildFromTemplate([
     { role: 'appMenu' }, { role: 'editMenu' }, { role: 'viewMenu' }, { role: 'windowMenu' },

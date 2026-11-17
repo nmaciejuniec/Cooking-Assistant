@@ -15,7 +15,8 @@
     "@capacitor/android": "8.6.2",
     "@capacitor/core": "8.6.2",
     "@capacitor/filesystem": "8.1.5",
-    "@capacitor/share": "8.0.3"
+    "@capacitor/share": "8.0.3",
+    "bonjour-service": "1.4.4"
   },
   "devDependencies": {
     "@capacitor/cli": "8.6.2",
@@ -25,14 +26,29 @@
   "build": {
     "appId": "com.nmaciejuniec.cookingassistant",
     "productName": "Cooking Assistant",
-    "directories": { "output": "dist", "buildResources": "build" },
-    "files": ["electron/**", "www/**", "package.json", "!node_modules/**"],
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "electron/**",
+      "www/**",
+      "package.json"
+    ],
     "npmRebuild": false,
     "mac": {
       "category": "public.app-category.lifestyle",
       "icon": "build/icon.png",
       "identity": null,
-      "target": ["dir"]
+      "target": [
+        "dir"
+      ],
+      "extendInfo": {
+        "NSLocalNetworkUsageDescription": "Cooking Assistant finds your other devices on the home Wi-Fi to sync recipes.",
+        "NSBonjourServices": [
+          "_cookassist._tcp"
+        ]
+      }
     }
   }
 }
