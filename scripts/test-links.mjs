@@ -25,7 +25,12 @@ for (const url of links) {
     else if (md.length) msg += 'Microdata OK: ' + show(md[0]);
     else msg += `No recipe data parsed. Page text for AI: ${stripTags(text.replace(/<(script|style|nav|footer|header)[\s\S]*?<\/\1>/gi, ' ')).length} chars`;
     console.log(`::notice title=${host}::${msg.replace(/\n/g, ' ')}`);
-    if (!ld.length && !md.length) console.log(`::warning title=${host} context::${ctx}`);
+    if (!ld.length && !md.length) {
+      const names = {}; for (const m of text.matchAll(/(?:itemprop|property)=["']([^"']+)["']/g)) names[m[1]] = (names[m[1]] || 0) + 1;
+      console.log(`::warning title=${host} props::${Object.entries(names).slice(0, 40).map(([k, v]) => k + '×' + v).join(', ')}`);
+      const ing = (text.match(/.{0,200}(?:recipeIngredient|ingredients|skladnik|składnik).{0,200}/i) || [''])[0].replace(/\s+/g, ' ');
+      console.log(`::warning title=${host} ingredients-html::${ing.slice(0, 400)}`);
+    }
     if (!ld.length && recipeWord) {
       const m = text.match(/<script[^>]*ld\+json[^>]*>([\s\S]*?)<\/script>/gi) || [];
       const rec = m.find(x => /Recipe/.test(x)) || '';
