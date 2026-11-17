@@ -85,14 +85,14 @@ jobs:
           name: mac
           path: CookingAssistant.dmg
 
-  release:
-    needs: [android, mac]
-    # Publish whatever was built, so the APK is not held back if the Mac build fails.
-    if: ${{ !cancelled() && (needs.android.result == 'success' || needs.mac.result == 'success') }}
+  # Each app is published as soon as it is built, into the same release.
+  release-android:
+    needs: android
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
         with:
+          name: android
           path: out
       - uses: softprops/action-gh-release@v2
         with:
@@ -103,10 +103,23 @@ jobs:
           body: |
             Download:
             - **CookingAssistant.apk**: Android tablet / phone
-            - **CookingAssistant.dmg**: Mac (Apple Silicon and Intel)
+            - **CookingAssistant.dmg**: Mac (Apple Silicon and Intel), added when the Mac build finishes
 
             Installation steps are in the README.
-          fail_on_unmatched_files: false
-          files: |
-            out/android/CookingAssistant.apk
-            out/mac/CookingAssistant.dmg
+          files: out/CookingAssistant.apk
+
+  release-mac:
+    needs: [mac, release-android]
+    if: ${{ !cancelled() && needs.mac.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: mac
+          path: out
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: Cooking Assistant 1.0.${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          files: out/CookingAssistant.dmg
