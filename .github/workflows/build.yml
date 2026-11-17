@@ -1,5 +1,5 @@
 # Builds the Android app (APK) and the Mac app (DMG) on every push to main,
-# and publishes both as a GitHub Release (see the Releases section of the repo).
+# and publishes both in one GitHub release called "latest" (each build replaces the files).
 name: Build apps
 
 on:
@@ -32,9 +32,7 @@ jobs:
       - name: Install
         run: npm ci
       - name: Copy web app
-        run: node scripts/www.mjs
-        env:
-          APP_VERSION: 1.0.${{ github.run_number }}
+        run: APP_VERSION="$(TZ=Europe/Copenhagen date '+%d.%m.%Y') (${{ github.run_number }})" node scripts/www.mjs
       - name: Create Android project
         run: npx cap add android
       - name: App icon, home Wi-Fi sync plugin and version
@@ -94,36 +92,15 @@ jobs:
     needs: android
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v5
       - uses: actions/download-artifact@v4
         with:
           name: android
           path: out
-      - uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v1.0.${{ github.run_number }}
-          name: Cooking Assistant 1.0.${{ github.run_number }}
-          target_commitish: ${{ github.sha }}
-          make_latest: true
-          body: |
-            Download:
-            - **CookingAssistant.apk**: Android tablet / phone
-            - **CookingAssistant.dmg**: Mac (Apple Silicon and Intel), added when the Mac build finishes
-
-            Installation steps are in the README.
-          files: out/CookingAssistant.apk
-      - name: Tidy releases
+      - name: Publish the APK to the "latest" release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          # Keep the newest release, plus the newest release that has a Mac DMG if the newest has none.
-          LATEST=$(gh release list -R "$GITHUB_REPOSITORY" --limit 1 --json tagName --jq '.[0].tagName')
-          WITH_DMG=""
-          for t in $(gh release list -R "$GITHUB_REPOSITORY" --limit 200 --json tagName --jq '.[].tagName'); do
-            if gh release view "$t" -R "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' | grep -q '\.dmg$'; then WITH_DMG="$t"; break; fi
-          done
-          for t in $(gh release list -R "$GITHUB_REPOSITORY" --limit 200 --json tagName --jq '.[].tagName'); do
-            if [ "$t" != "$LATEST" ] && [ "$t" != "$WITH_DMG" ]; then echo "Deleting $t"; gh release delete "$t" -R "$GITHUB_REPOSITORY" --yes --cleanup-tag; fi
-          done
+        run: BUILD_DATE="$(TZ=Europe/Copenhagen date '+%d %b %Y, %H:%M')" bash scripts/release.sh apk out/CookingAssistant.apk
 
   # GitHub's Mac machines are sometimes unavailable, so the Mac app is built on
   # both kinds at once; one success is enough (both produce the same universal app).
@@ -141,9 +118,7 @@ jobs:
       - name: Install
         run: npm ci
       - name: Copy web app
-        run: node scripts/www.mjs
-        env:
-          APP_VERSION: 1.0.${{ github.run_number }}
+        run: APP_VERSION="$(TZ=Europe/Copenhagen date '+%d.%m.%Y') (${{ github.run_number }})" node scripts/www.mjs
       - name: Build app (Apple Silicon + Intel)
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
@@ -158,10 +133,10 @@ jobs:
           cp -R "$APP" dmgroot/
           ln -s /Applications dmgroot/Applications
           hdiutil create -volname "Cooking Assistant" -srcfolder dmgroot -ov -format UDZO CookingAssistant.dmg
-      - name: Add the DMG to the release
+      - name: Add the DMG to the "latest" release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "v1.0.${{ github.run_number }}" CookingAssistant.dmg --clobber -R "$GITHUB_REPOSITORY"
+        run: BUILD_DATE="$(TZ=Europe/Copenhagen date '+%d %b %Y, %H:%M')" bash scripts/release.sh dmg CookingAssistant.dmg
 
   mac-intel:
     # Intel Mac runner
@@ -177,9 +152,7 @@ jobs:
       - name: Install
         run: npm ci
       - name: Copy web app
-        run: node scripts/www.mjs
-        env:
-          APP_VERSION: 1.0.${{ github.run_number }}
+        run: APP_VERSION="$(TZ=Europe/Copenhagen date '+%d.%m.%Y') (${{ github.run_number }})" node scripts/www.mjs
       - name: Build app (Apple Silicon + Intel)
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
@@ -194,26 +167,7 @@ jobs:
           cp -R "$APP" dmgroot/
           ln -s /Applications dmgroot/Applications
           hdiutil create -volname "Cooking Assistant" -srcfolder dmgroot -ov -format UDZO CookingAssistant.dmg
-      - name: Add the DMG to the release
+      - name: Add the DMG to the "latest" release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "v1.0.${{ github.run_number }}" CookingAssistant.dmg --clobber -R "$GITHUB_REPOSITORY"
-
-  tidy:
-    needs: [mac-arm, mac-intel]
-    if: ${{ always() && (needs.mac-arm.result == 'success' || needs.mac-intel.result == 'success') }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Keep only the newest release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          # Keep the newest release, plus the newest release that has a Mac DMG if the newest has none.
-          LATEST=$(gh release list -R "$GITHUB_REPOSITORY" --limit 1 --json tagName --jq '.[0].tagName')
-          WITH_DMG=""
-          for t in $(gh release list -R "$GITHUB_REPOSITORY" --limit 200 --json tagName --jq '.[].tagName'); do
-            if gh release view "$t" -R "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' | grep -q '\.dmg$'; then WITH_DMG="$t"; break; fi
-          done
-          for t in $(gh release list -R "$GITHUB_REPOSITORY" --limit 200 --json tagName --jq '.[].tagName'); do
-            if [ "$t" != "$LATEST" ] && [ "$t" != "$WITH_DMG" ]; then echo "Deleting $t"; gh release delete "$t" -R "$GITHUB_REPOSITORY" --yes --cleanup-tag; fi
-          done
+        run: BUILD_DATE="$(TZ=Europe/Copenhagen date '+%d %b %Y, %H:%M')" bash scripts/release.sh dmg CookingAssistant.dmg
