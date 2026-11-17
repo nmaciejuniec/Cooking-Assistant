@@ -9,7 +9,8 @@ and download from the newest release:
 - `CookingAssistant.apk` for Android
 - `CookingAssistant.dmg` for Mac (Apple Silicon and Intel)
 
-A new release is built automatically every time the app changes.
+A new release is built automatically every time the app changes. Only the newest release is kept;
+older ones are deleted once the new one has both the APK and the DMG.
 
 ## Install on Android (Samsung tablet)
 1. On the tablet, open this repository in Chrome → **Releases** → tap `CookingAssistant.apk`.
