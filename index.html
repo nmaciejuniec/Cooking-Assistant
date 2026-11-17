@@ -1175,7 +1175,6 @@ function renderRecipe() {
   if (r.aiGenerated) body.append(h('div', { class: 'trbanner' }, '✦ ' + tx('Ten przepis wymyśliło AI (asystent). Nie pochodzi ze sprawdzonego źródła, więc sprawdź ilości i czasy.')));
   if (S.canWrite) body.append(h('div', { class: 'row wrapflex', style: 'margin:4px 0 8px' },
     Object.entries(STATUS).map(([k, st]) => h('button', { class: 'btn small statbtn' + (r.status === k ? ' on' : ''), title: r.status === k ? tx('Kliknij, aby usunąć oznaczenie') : '', onclick: () => setStatus(r, r.status === k ? '' : k) }, st.icon + ' ' + tx(st.label) + (r.status === k ? '  ✕' : ''))),
-    h('span', { style: 'width:1px;height:22px;background:var(--line);margin:0 4px' }),
     Object.entries(FLAGS).map(([k, st]) => { const on = (r.flags || []).includes(k); return h('button', { class: 'btn small statbtn' + (on ? ' on' : ''), onclick: () => toggleFlag(r, k) }, st.icon + ' ' + tx(st.label) + (on ? '  ✕' : '')); })));
   else if (r.status || (r.flags || []).length) body.append(h('div', null, r.status ? h('span', { class: 'stattag' }, STATUS[r.status].icon + ' ' + tx(STATUS[r.status].label)) : null, (r.flags || []).filter(k => FLAGS[k]).map(k => h('span', { class: 'stattag flag' }, FLAGS[k].icon + ' ' + tx(FLAGS[k].label)))));
   const times = [r.prepTime ? lab.prep + ': ' + r.prepTime : '', r.cookTime ? lab.cook + ': ' + r.cookTime : ''].filter(Boolean).join(' · ');
@@ -1254,9 +1253,9 @@ function renderRecipe() {
     } }, tx('Usuń')) : null));
   app.append(head, body, bar);
 }
-const STATUS = { fav: { icon: '★', label: 'Ulubione' }, try: { icon: '🕐', label: 'Do wypróbowania' }, ok: { icon: '✓', label: 'Sprawdzone' }, fail: { icon: '✗', label: 'Nie wyszło' } };
-const FLAGS = { occasion: { icon: '🎉', label: 'Na okazje' }, quick: { icon: '⚡', label: 'Szybkie' } };
-const MARK_ORDER = ['fav', 'try', 'ok', 'occasion', 'quick', 'fail'];
+const STATUS = { fav: { icon: '★', label: 'Ulubione' }, try: { icon: '🕐', label: 'Do wypróbowania' } };
+const FLAGS = {};
+const MARK_ORDER = ['fav', 'try'];
 function markDef(k) { return STATUS[k] || FLAGS[k]; }
 function hasMark(r, k) { return STATUS[k] ? r.status === k : (r.flags || []).includes(k); }
 async function toggleFlag(r, k) {
@@ -1360,8 +1359,9 @@ async function cookMode(r) {
         const cur = getR(r.id) || r;
         if (S.canWrite && cur.status !== 'fav') {
           const v = await modal(tx('Smacznego! Jak wyszło?'), h('p', null, cur.status === 'try' ? tx('Ten przepis był na liście „Do wypróbowania”.') : tx('Możesz od razu oznaczyć przepis.')),
-            [{ label: tx('Zamknij'), value: null }, { label: '✗ ' + tx('Nie wyszło'), value: 'fail' }, { label: '✓ ' + tx('Sprawdzone'), value: 'ok' }, { label: tx('★ Do ulubionych'), value: 'fav', primary: true }]);
-          if (v === 'fav' || v === 'ok' || v === 'fail') await setStatus(cur, v);
+            [{ label: tx('Zamknij'), value: null }, cur.status === 'try' ? { label: tx('Usuń z „Do wypróbowania”'), value: 'clear' } : null, { label: tx('★ Do ulubionych'), value: 'fav', primary: true }].filter(Boolean));
+          if (v === 'fav') await setStatus(cur, 'fav');
+          if (v === 'clear') await setStatus(cur, '');
           if (v) close();
         } else toast(tx('Smacznego!'));
         draw();
