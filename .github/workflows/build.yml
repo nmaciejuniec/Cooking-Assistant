@@ -43,11 +43,13 @@ jobs:
           sed -i "s/versionCode 1$/versionCode ${{ github.run_number }}/; s/versionName \"1.0\"/versionName \"1.0.${{ github.run_number }}\"/" android/app/build.gradle
           grep -n "versionCode\|versionName" android/app/build.gradle
       # Every version must be signed with the same key, or Android refuses to install it over the old one.
-      - name: Signing key (repository secret ANDROID_KEYSTORE_BASE64)
+      - name: Signing key (repository secrets ANDROID_KEYSTORE_BASE64 and ANDROID_KEYSTORE_PASSWORD)
         env:
           KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: |
           if [ -z "$KEYSTORE_B64" ]; then echo "::error::Missing secret ANDROID_KEYSTORE_BASE64 (Settings > Secrets and variables > Actions)"; exit 1; fi
+          if [ -z "$KEYSTORE_PASSWORD" ]; then echo "::error::Missing secret ANDROID_KEYSTORE_PASSWORD (Settings > Secrets and variables > Actions)"; exit 1; fi
           echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.keystore"
           cat >> android/app/build.gradle <<EOF
 
@@ -55,9 +57,9 @@ jobs:
               signingConfigs {
                   cookingAssistant {
                       storeFile file("$RUNNER_TEMP/release.keystore")
-                      storePassword "cooking-assistant"
+                      storePassword System.getenv("KEYSTORE_PASSWORD")
                       keyAlias "cookingassistant"
-                      keyPassword "cooking-assistant"
+                      keyPassword System.getenv("KEYSTORE_PASSWORD")
                   }
               }
               buildTypes {
@@ -69,6 +71,8 @@ jobs:
         run: npx cap sync android
       - name: Build APK
         working-directory: android
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: ./gradlew assembleDebug --no-daemon --stacktrace
       - name: Collect APK
         run: cp android/app/build/outputs/apk/debug/app-debug.apk CookingAssistant.apk

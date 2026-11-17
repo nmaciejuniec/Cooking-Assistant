@@ -92,8 +92,8 @@ In the Claude version: **⋯ → Backup (JSON)** (Polish: *Kopia zapasowa (JSON)
 - Android: Capacitor (`capacitor.config.json`). `scripts/android-native.sh` adds our own parts to the generated
   project: icons (`native/android/res`), the home Wi-Fi sync plugin (`native/android/java/LanSyncPlugin.java`,
   Bonjour via `NsdManager` + TCP) and its permissions.
-  The APK is signed with the app's own key, kept as the repository secret `ANDROID_KEYSTORE_BASE64`
-  (store/key password `cooking-assistant`, alias `cookingassistant`). The build checks the certificate
+  The APK is signed with the app's own key, kept as repository secrets: `ANDROID_KEYSTORE_BASE64` (the keystore)
+  and `ANDROID_KEYSTORE_PASSWORD` (its password; alias `cookingassistant`). The build checks the certificate
   (SHA-256 `7C:90:6D:B2:4F:3C:37:17:D1:6B:B7:D5:BF:A8:FA:73:4D:A0:50:67:73:1C:93:DC:3D:61:EC:B8:A4:1D:2D:40`),
   so every version installs over the previous one. Keep a private copy of the key: without it, updates cannot be installed over the app.
 - Mac: Electron (`electron/`), packaged by electron-builder and ad-hoc signed. Wi-Fi sync uses `bonjour-service` + TCP in `electron/main.js`.
