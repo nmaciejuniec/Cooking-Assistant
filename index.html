@@ -916,6 +916,11 @@ function mergeSync(j) {
 }
 function syncSummary(st) { return tx('Nowe: ') + st.added + ' · ' + tx('zaktualizowane: ') + st.updated + ' · ' + tx('usunięte: ') + st.removed; }
 // ---- settings ----
+async function needKey() {
+  const v = await modal(tx('Potrzebny klucz API'), h('p', null, tx('Funkcje AI (rozpoznawanie przepisów, tłumaczenia, grafiki, asystent) działają po wpisaniu klucza API Anthropic w Ustawieniach. Klucz tworzysz na console.anthropic.com → API keys.')),
+    [{ label: tx('Zamknij'), value: null }, { label: tx('Otwórz Ustawienia'), value: 'go', primary: true }]);
+  if (v === 'go') goto('settings');
+}
 async function aiDrawMissing() {
   const todo = S.recipes.filter(r => !S.imgs[r.id]);
   if (!todo.length) { toast(tx('Wszystkie przepisy mają obrazek')); return; }
@@ -1281,8 +1286,8 @@ async function listMenu() {
     { label: 'Markdown', value: 'md' },
     { label: '⚙ ' + tx('Ustawienia i synchronizacja'), value: 'settings' },
     { label: tx('Duplikaty'), value: 'dupes' },
-    aiReady() ? { label: '✦ ' + tx('Uzupełnij podkategorie (AI)'), value: 'subs', ai: true } : null,
-    aiReady() ? { label: '✦ ' + tx('Grafiki AI dla przepisów bez obrazka'), value: 'imgs', ai: true } : null,
+    { label: '✦ ' + tx('Uzupełnij podkategorie (AI)'), value: 'subs', ai: true },
+    { label: '✦ ' + tx('Grafiki AI dla przepisów bez obrazka'), value: 'imgs', ai: true },
     { label: tx('Zamknij'), value: null },
   ].filter(Boolean));
   if (v === 'pdf') { if (!list.length) return toast(tx('Brak przepisów')); pdfFlow(list.map(r => ({ r, lang: displayLang(r), factor: 1 })), 'recipe-notebook'); }
@@ -1290,6 +1295,7 @@ async function listMenu() {
   if (v === 'md') exportFile(list.map(r => toMarkdown(r, displayLang(r), 1)).join('\n\n---\n\n'), 'recipes.md');
   if (v === 'settings') goto('settings');
   if (v === 'dupes') goto('dupes');
+  if ((v === 'subs' || v === 'imgs') && !aiReady()) { needKey(); return; }
   if (v === 'subs') aiSubcategories();
   if (v === 'imgs') aiDrawMissing();
 }
@@ -1335,7 +1341,7 @@ function renderRecipe() {
       stale ? h('span', null, tx(' Oryginał zmienił się od tłumaczenia. '), h('button', { class: 'btn small ai', onclick: async (e) => { e.target.disabled = true; try { const tr = await aiTranslate(r, lang); const nr = clean(r); nr.tr[lang] = tr; await saveRecipe(nr); render(); } catch (er) { toast(er.message); e.target.disabled = false; } } }, tx('Odśwież'))) : null));
   }
   const imgInput = h('input', { type: 'file', accept: 'image/*', style: 'display:none', onchange: async () => { const f = imgInput.files && imgInput.files[0]; if (!f) return; try { await setImage(r.id, await fileToImage(f), 'photo'); render(); } catch (e) { toast(e.message); } } });
-  const drawBtn = () => { const b = h('button', { class: 'btn small ai', disabled: !aiReady() }, '✦ ' + tx('Grafika AI')); b.onclick = async () => { b.disabled = true; b.innerHTML = ''; b.append(h('span', { class: 'spinner' }), ' ' + tx('Rysuję…')); try { await setImage(r.id, await aiDrawImage(r), 'ai'); render(); } catch (e) { toast(e.message, 4000); render(); } }; return b; };
+  const drawBtn = () => { const b = h('button', { class: 'btn small ai' }, '✦ ' + tx('Grafika AI')); b.onclick = async () => { if (!aiReady()) { needKey(); return; } b.disabled = true; b.innerHTML = ''; b.append(h('span', { class: 'spinner' }), ' ' + tx('Rysuję…')); try { await setImage(r.id, await aiDrawImage(r), 'ai'); render(); } catch (e) { toast(e.message, 4000); render(); } }; return b; };
   const webBtn = () => (r.source && r.source.url && canFetchPages()) ? h('button', { class: 'btn small', onclick: async (e) => { e.target.disabled = true; try { const html = await fetchPage(r.source.url); const pic = pageImage(html, r.source.url); if (!pic) throw new Error(tx('Na stronie nie ma zdjęcia przepisu')); await setImage(r.id, await fetchImage(pic), 'web'); render(); } catch (er) { toast(er.message === 'image' ? tx('Nie udało się pobrać zdjęcia') : er.message, 4000); e.target.disabled = false; } } }, '🌐 ' + tx('Zdjęcie ze strony')) : null;
   if (S.imgs[r.id]) {
     body.append(h('div', { class: 'hero' + (String(S.imgs[r.id]).startsWith('<svg') ? ' svg' : '') }, h('img', { src: imgSrc(r.id), alt: '' }),
@@ -2234,6 +2240,7 @@ Object.assign(UI_EN, {"Nie udało się zapisać danych na tym urządzeniu": "Cou
 Object.assign(UI_EN, {"Nie udało się zapisać zdjęcia na tym urządzeniu": "Could not save the picture on this device", "Nie udało się odczytać zdjęcia": "Could not read the picture", "AI nie zwróciło poprawnej grafiki. Spróbuj jeszcze raz.": "AI did not return a valid picture. Try again.", "Pobieram zdjęcie ze strony…": "Fetching the picture from the page…", "Grafika AI": "AI picture", "Rysuję…": "Drawing…", "Na stronie nie ma zdjęcia przepisu": "The page has no recipe picture", "Nie udało się pobrać zdjęcia": "Could not download the picture", "Zdjęcie ze strony": "Picture from the page", "grafika AI": "AI picture", "Zmień": "Change", "Brak obrazka": "No picture", "Dodaj zdjęcie": "Add photo", "Grafiki AI dla przepisów bez obrazka": "AI pictures for recipes without one", "Wszystkie przepisy mają obrazek": "All recipes have a picture", "Grafiki AI": "AI pictures", "Claude narysuje prostą grafikę dla przepisów bez obrazka: ": "Claude will draw a simple picture for recipes without one: ", "Każda grafika to jedno zapytanie do API (płatne z Twojego klucza). Możesz przerwać w każdej chwili.": "Each picture is one API request (paid from your key). You can stop at any time.", "Rysuj": "Draw", "Przerwij": "Stop", "Rysuję": "Drawing", "Gotowe: ": "Done: "});
 Object.assign(UI_EN, {"Nie udało się pobrać zdjęcia ze strony. Możesz dodać zdjęcie albo grafikę AI w przepisie.": "Could not download the picture from the page. You can add a photo or an AI picture in the recipe."});
 Object.assign(UI_EN, {'Wersja aplikacji: ': 'App version: '});
+Object.assign(UI_EN, {"Potrzebny klucz API": "API key needed", "Funkcje AI (rozpoznawanie przepisów, tłumaczenia, grafiki, asystent) działają po wpisaniu klucza API Anthropic w Ustawieniach. Klucz tworzysz na console.anthropic.com → API keys.": "AI features (reading recipes, translations, pictures, assistant) work after you enter an Anthropic API key in Settings. Create the key at console.anthropic.com → API keys."});
 Object.values(DEFAULT_SUBS).flat().forEach(x => CAT_SET.add(x));
 render();
 initStore();
