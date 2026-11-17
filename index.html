@@ -9,7 +9,7 @@
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Source+Sans+3:wght@400;600;700&family=DM+Serif+Display&family=Courier+Prime:wght@400;700&family=Special+Elite&display=swap" rel="stylesheet">
 <style>
 :root{
   --bg:#FBF7F0; --card:#FFFFFF; --ink:#2B2622; --muted:#7A6F66; --line:#E8DFD3;
@@ -146,6 +146,49 @@ label.f{display:block;font-size:13px;font-weight:600;color:var(--muted);margin:1
   .rhead .hero img{height:100%;max-height:none;min-height:260px;flex:1}
   .rhead .noimg{flex:1;flex-direction:column;justify-content:center;text-align:center}
 }
+
+/* ===== Retro recipe-card style (default) ===== */
+:root[data-style="retro"]{
+  --bg:#F3EAD7; --card:#FBF6EA; --surface:#FFFDF6; --ink:#3A2E28; --muted:#86725F; --line:#DCCBAE;
+  --accent:#C2502F; --accent-soft:#F1D9C9; --ai:#3F6774; --ai-bg:#E4EDEF; --ai-line:#93B2BC;
+  --hover-line:#BFA985; --hdr:rgba(243,234,215,.95); --bar:rgba(251,246,234,.97);
+  --banner-bg:#F7E6B8; --banner-line:#D9B25A; --tag-fg:#8E3B22; --green-bg:#DDE7D2; --green-fg:#3D6435;
+  --gold-bg:#F6E1A8; --gold-line:#D19A2A; --radius:8px; --retro-red:#C2502F; --retro-mustard:#D9A13B; --retro-teal:#2F7470;
+}
+:root[data-style="retro"][data-theme="dark"]{
+  --bg:#1D1814; --card:#28211B; --surface:#2F2720; --ink:#EFE2C8; --muted:#B19E86; --line:#463A2F; --on-ink:#1D1814;
+  --accent:#D9714E; --accent-soft:#4A2D22; --ai:#9CC2CC; --ai-bg:#22313A; --ai-line:#4E6E7B; --hover-line:#6A5948;
+  --hdr:rgba(29,24,20,.94); --bar:rgba(40,33,27,.97); --banner-bg:#3E3218; --banner-line:#7E6427; --tag-fg:#F0B79F;
+  --green-bg:#233320; --green-fg:#A8CE9C; --gold-bg:#463818; --gold-line:#97762C;
+}
+:root[data-style="retro"] body{background-color:var(--bg);background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .35 0 0 0 0 .26 0 0 0 0 .16 0 0 0 .08 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>")}
+:root[data-style="retro"] h1,:root[data-style="retro"] h2,:root[data-style="retro"] h3,:root[data-style="retro"] .brand,:root[data-style="retro"] .tree-h,:root[data-style="retro"] .cook-h{font-family:"DM Serif Display",Georgia,serif;font-weight:400;letter-spacing:.01em}
+:root[data-style="retro"] .brand{font-size:24px;text-transform:uppercase;letter-spacing:.06em}
+:root[data-style="retro"] .brand::after{content:"";display:block;height:3px;width:56px;background:linear-gradient(90deg,var(--retro-red) 0 33%,var(--retro-mustard) 33% 66%,var(--retro-teal) 66%);margin-top:3px;border-radius:2px}
+:root[data-style="retro"] .rtitle{font-size:38px;line-height:1.05}
+:root[data-style="retro"] .panel{border:1.5px solid var(--line);box-shadow:3px 3px 0 var(--line);border-radius:6px}
+:root[data-style="retro"] .panel h2{display:inline-block;border-bottom:2px solid var(--accent);padding-bottom:2px}
+:root[data-style="retro"] .card{border:1.5px solid var(--line);box-shadow:3px 3px 0 var(--line);border-radius:6px;border-top:6px solid var(--retro-red)}
+:root[data-style="retro"] .card:nth-child(3n+2){border-top-color:var(--retro-mustard)}
+:root[data-style="retro"] .card:nth-child(3n+3){border-top-color:var(--retro-teal)}
+:root[data-style="retro"] .card.withimg{border-top-width:1.5px}
+:root[data-style="retro"] .card h3{font-size:21px}
+:root[data-style="retro"] .ing li,:root[data-style="retro"] ol.steps li,:root[data-style="retro"] .cook .body,:root[data-style="retro"] .cook label.chk,:root[data-style="retro"] .cook .stepcard,:root[data-style="retro"] .cook .alls li,:root[data-style="retro"] .needchip{font-family:"Courier Prime","Courier New",monospace}
+:root[data-style="retro"] .ing li{border-bottom:1px solid var(--line)}
+:root[data-style="retro"] ol.steps li::marker{font-family:"DM Serif Display",serif;color:var(--accent);font-size:1.15em}
+:root[data-style="retro"] .meta,:root[data-style="retro"] .fact .lb,:root[data-style="retro"] .tag,:root[data-style="retro"] .stattag,:root[data-style="retro"] .aitag,:root[data-style="retro"] .hint-small{font-family:"Special Elite","Courier Prime",monospace}
+:root[data-style="retro"] .tag{border:1px solid var(--tag-fg);background:transparent;border-radius:3px;text-transform:lowercase}
+:root[data-style="retro"] .fact .vl{font-family:"DM Serif Display",serif;font-size:20px;font-weight:400}
+:root[data-style="retro"] .facts{border-top:2px dashed var(--line);border-bottom:2px dashed var(--line)}
+:root[data-style="retro"] .btn,:root[data-style="retro"] .chip,:root[data-style="retro"] .seg{border-radius:6px}
+:root[data-style="retro"] .btn.primary{box-shadow:2px 2px 0 var(--ink)}
+:root[data-style="retro"] .seg button.on,:root[data-style="retro"] .chip.on,:root[data-style="retro"] .tnode.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+:root[data-style="retro"] .asstbtn{border-radius:6px;border-style:dashed;font-family:"DM Serif Display",serif;font-weight:400;font-size:18px}
+:root[data-style="retro"] .hero,:root[data-style="retro"] .noimg{border-radius:6px}
+:root[data-style="retro"] .hero{border:6px solid var(--surface);box-shadow:3px 3px 0 var(--line),0 1px 6px rgba(0,0,0,.08);transform:rotate(.6deg)}
+:root[data-style="retro"] .tree{border-radius:6px;box-shadow:3px 3px 0 var(--line)}
+:root[data-style="retro"] .modal{border-radius:10px 10px 0 0}
+@media (min-width:700px){:root[data-style="retro"] .modal{border-radius:10px}}
 .empty{text-align:center;color:var(--muted);padding:50px 10px}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--surface)}
 .seg button{border:none;background:none;padding:6px 12px;cursor:pointer;font-size:14px}
@@ -685,7 +728,7 @@ const S = {
   recipes: [], loaded: false, db: null, local: false, canWrite: true,
   view: 'list', id: null, q: '', cat: '', sort: 'new',
   viewLang: {}, servings: {}, tempTr: {}, pending: [], pendingIdx: -1, editing: null,
-  settings: { units: 'orig', binder: true, compact: false, prefLang: '', ui: 'pl', theme: 'system' },
+  settings: { units: 'orig', binder: true, compact: false, prefLang: '', ui: 'pl', theme: 'system', style: 'retro' },
   sample: null, sampleImages: false, downloads: null, note: '',
 };
 try { Object.assign(S.settings, JSON.parse(localStorage.getItem('cookingAssistant.settings') || '{}')); } catch (e) { }
@@ -698,6 +741,7 @@ function applyTheme() {
   let dark = t === 'dark';
   try { if (t === 'system') dark = window.matchMedia('(prefers-color-scheme: dark)').matches; } catch (e) { }
   document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  document.documentElement.dataset.style = S.settings.style || 'retro';
   const m = document.querySelector('meta[name=theme-color]'); if (m) m.content = dark ? '#181513' : '#B5532E';
 }
 applyTheme();
@@ -1060,7 +1104,8 @@ function renderSettings() {
         h('div', { class: 'seg' }, [['light', '☀ ' + tx('Jasny')], ['dark', '☾ ' + tx('Ciemny')], ['system', '◐ ' + tx('Systemowy')]].map(([k, l]) =>
           h('button', { class: (S.settings.theme || 'system') === k ? 'on' : '', onclick: () => { S.settings.theme = k; saveSettings(); applyTheme(); render(); } }, l))),
         h('div', { class: 'seg' }, ['pl', 'en'].map(k => h('button', { class: S.settings.ui === k ? 'on' : '', onclick: () => { S.settings.ui = k; saveSettings(); render(); } }, k === 'pl' ? 'Polski' : 'English')))),
-      h('p', { class: 'hint-small' }, tx('Systemowy: zmienia się razem z ustawieniem telefonu lub komputera.'))),
+      h('p', { class: 'hint-small' }, tx('Systemowy: zmienia się razem z ustawieniem telefonu lub komputera.')),
+      h('div', { class: 'row wrapflex', style: 'margin-top:8px' }, h('span', { class: 'hint-small' }, tx('Styl:')), h('div', { class: 'seg' }, [['retro', tx('Retro')], ['modern', tx('Nowoczesny')]].map(([k, l]) => h('button', { class: (S.settings.style || 'retro') === k ? 'on' : '', onclick: () => { S.settings.style = k; saveSettings(); applyTheme(); render(); } }, l))))),
     h('div', { class: 'panel' }, h('h2', { style: 'font-size:19px' }, '✦ ' + tx('AI (klucz API Anthropic)')),
       h('p', { class: 'hint-small' }, tx(NATIVE ? 'Klucz jest zapisany tylko w aplikacji na tym urządzeniu. Nie trafia do pliku synchronizacji. Bez klucza aplikacja działa, ale bez funkcji AI.' : 'Klucz jest zapisany tylko w tej przeglądarce na tym urządzeniu. Nie trafia do kodu ani do pliku synchronizacji. Bez klucza aplikacja działa, ale bez funkcji AI.')),
       h('label', { class: 'f' }, tx('Klucz API')), h('div', { class: 'row' }, keyIn, h('button', { class: 'btn small', onclick: () => { keyIn.type = keyIn.type === 'password' ? 'text' : 'password'; } }, '👁')),
@@ -2365,6 +2410,7 @@ Object.assign(UI_EN, {'Wersja aplikacji: ': 'App version: '});
 Object.assign(UI_EN, {"Potrzebny klucz API": "API key needed", "Funkcje AI (rozpoznawanie przepisów, tłumaczenia, grafiki, asystent) działają po wpisaniu klucza API Anthropic w Ustawieniach. Klucz tworzysz na console.anthropic.com → API keys.": "AI features (reading recipes, translations, pictures, assistant) work after you enter an Anthropic API key in Settings. Create the key at console.anthropic.com → API keys."});
 Object.assign(UI_EN, {"Uprość kroki": "Simplify steps", "Upraszczam…": "Simplifying…", "Kroki uproszczone": "Steps simplified", "Kroki uproszczone przez AI.": "Steps simplified by AI.", "Przywróć oryginał": "Restore original", "Przywrócono oryginalne kroki": "Original steps restored"});
 Object.assign(UI_EN, {"Szklanki i łyżki": "Cups & spoons", "szklanki i łyżki": "cups & spoons", "≈ przeliczenie gramów na szklanki i łyżki jest orientacyjne (zależy od produktu i sposobu nabierania).": "≈ converting grams to cups and spoons is approximate (depends on the product and how it is measured)."});
+Object.assign(UI_EN, {"Styl:": "Style:", "Retro": "Retro", "Nowoczesny": "Modern"});
 Object.values(DEFAULT_SUBS).flat().forEach(x => CAT_SET.add(x));
 render();
 initStore();
