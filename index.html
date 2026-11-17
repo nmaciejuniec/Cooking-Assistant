@@ -178,63 +178,43 @@ label.f{display:block;font-size:13px;font-weight:600;color:var(--muted);margin:1
 :root[data-style="retro"] .btn.primary,:root[data-style="retro"] .seg button.on,:root[data-style="retro"] .chip.on,:root[data-style="retro"] .tnode.on{background:var(--c);color:var(--on-ink);border-color:var(--c)}
 :root[data-style="retro"] .seg,:root[data-style="retro"] .btn,:root[data-style="retro"] .chip,:root[data-style="retro"] input,:root[data-style="retro"] textarea,:root[data-style="retro"] select{border-color:var(--c-line)}
 :root[data-style="retro"] .asstbtn{border:1.5px dashed var(--c);background:var(--c-soft);color:var(--c);border-radius:12px;font-family:"DM Serif Display",serif;font-weight:400;font-size:18px}
-/* the recipe card */
-.rcard{background:var(--card);border:2px solid var(--c);border-radius:14px;margin-top:14px;overflow:hidden}
-.rcard>div{border-top:1.5px solid var(--c)}
-.rcard>div:first-child{border-top:none}
-.rc-lb{font-family:"Cormorant SC",Georgia,serif;font-weight:700;color:var(--c);font-size:17px;letter-spacing:.03em;margin-right:6px}
-.rc-lb::first-letter{text-transform:uppercase}
-.rc-img .hero.svg{background:transparent}
-.rc-v{font-family:"Courier Prime","Courier New",monospace}
-.rc-top{display:grid;grid-template-columns:auto minmax(0,1fr)}
-.rc-brand{font-family:"Cormorant SC",Georgia,serif;font-weight:700;color:var(--c);font-size:36px;line-height:1;letter-spacing:.04em;padding:16px 22px;border-right:1.5px solid var(--c);display:flex;align-items:center;text-transform:uppercase}
-.rc-title{padding:14px 18px;min-width:0}
-.rc-title .rtitle{margin:0 0 6px;font-size:32px;line-height:1.1}
-.rc-title .statrow{margin:4px 0 0!important}
-.rc-row,.rc-row4{display:grid}
-.rc-row{grid-template-columns:minmax(0,2fr) minmax(0,1.3fr) minmax(0,1fr)}
-.rc-row4{grid-template-columns:repeat(4,minmax(0,1fr))}
-.rc-cell{padding:9px 14px;border-left:1.5px solid var(--c);min-width:0;overflow-wrap:anywhere}
-.rc-cell:first-child{border-left:none}
-.rc-mid{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr)}
-.rc-mid.noi{grid-template-columns:1fr}
-.rc-sec{display:grid;grid-template-columns:44px minmax(0,1fr)}
-.rc-vlab{writing-mode:vertical-rl;transform:rotate(180deg);font-family:"Cormorant SC",Georgia,serif;font-weight:700;color:var(--c);font-size:21px;letter-spacing:.1em;text-transform:uppercase;padding:14px 10px;text-align:end;white-space:nowrap}
-.rc-body{padding:12px 18px 14px 4px;min-width:0}
-.rc-tools{display:flex;justify-content:flex-end;margin-bottom:6px}
-.rc-img{border-left:1.5px solid var(--c);display:flex;align-items:stretch;padding:14px;min-height:220px}
-.rc-img>*{flex:1;margin:0!important}
-.rc-img .hero{transform:none;border:none;box-shadow:none;border-radius:8px;display:flex}
-.rc-img .hero img{height:100%;max-height:420px;object-fit:cover;flex:1}
-.rc-img .hero.svg img{object-fit:contain}
-.rc-img .noimg{border:1.5px dashed var(--c-line);border-radius:8px;flex-direction:column;justify-content:center;text-align:center}
-.rcard .ing li{border-bottom:1px solid var(--c-line)}
-.rcard .ing li:last-child{border-bottom:none}
-.rcard ol.steps{padding-left:24px}
-.rcard ol.steps li{border-bottom:1px solid var(--c-line);padding:4px 0 10px 4px;margin:0 0 8px}
-.rcard ol.steps li:last-child{border-bottom:none;margin-bottom:0}
-.rcard ol.steps li::marker{font-family:"DM Serif Display",serif;color:var(--c);font-size:1.15em}
-.rc-notes{padding:10px 16px 14px;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:4px 8px;align-items:start}
-.rc-notes .rc-lb{line-height:28px}
-.rc-notes>*:not(.rc-lb):not(.row){grid-column:1/-1}
-.rc-notes .notes{margin:0!important;line-height:28px;background-image:repeating-linear-gradient(transparent 0 27px,var(--c-line) 27px 28px);white-space:pre-wrap}
-.rc-notes .hint-small{margin:0;line-height:28px;background-image:repeating-linear-gradient(transparent 0 27px,var(--c-line) 27px 28px);min-height:56px}
-@media (max-width:640px){
-  .rc-top{grid-template-columns:1fr}
-  .rc-brand{border-right:none;border-bottom:1.5px solid var(--c);font-size:24px;padding:10px 16px}
-  .rc-title .rtitle{font-size:27px}
-  .rc-row{grid-template-columns:1fr}
-  .rc-row .rc-cell{border-left:none;border-top:1.5px solid var(--c)}
-  .rc-row .rc-cell:first-child{border-top:none}
-  .rc-row4{grid-template-columns:1fr 1fr}
-  .rc-row4 .rc-cell:nth-child(n+3){border-top:1.5px solid var(--c)}
-  .rc-row4 .rc-cell:nth-child(3){border-left:none}
-  .rc-mid{grid-template-columns:1fr}
-  .rc-img{border-left:none;border-bottom:1.5px solid var(--c);order:-1;min-height:0}
-  .rc-sec{grid-template-columns:1fr}
-  .rc-vlab{writing-mode:horizontal-tb;transform:none;text-align:start;padding:12px 16px 0;font-size:19px}
-  .rc-body{padding:4px 16px 14px}
+/* recipe view in card look (same layout as Modern) */
+:root[data-style="retro"] .rhead{background:var(--card);border:2px solid var(--c);border-radius:14px;padding:18px}
+:root[data-style="retro"] .rtitle{font-size:34px;line-height:1.08}
+:root[data-style="retro"] .facts{border-top:1.5px solid var(--c);border-bottom:1.5px solid var(--c)}
+:root[data-style="retro"] .fact .ic{color:var(--c)}
+:root[data-style="retro"] .fact .lb{font-family:"Cormorant SC",Georgia,serif;color:var(--c);font-size:14px;letter-spacing:.05em}
+:root[data-style="retro"] .fact .vl{font-family:"Courier Prime","Courier New",monospace;font-weight:700}
+:root[data-style="retro"] .rhead .hero,:root[data-style="retro"] .rhead .noimg{border-radius:10px}
+:root[data-style="retro"] .rhead .hero{border:1.5px solid var(--c)}
+:root[data-style="retro"] .rhead .noimg{border:1.5px dashed var(--c-line)}
+:root[data-style="retro"] .panel{border-width:2px;border-radius:14px}
+:root[data-style="retro"] .panel h2{font-size:22px!important;padding-bottom:4px;border-bottom:1.5px solid var(--c);margin-bottom:8px}
+:root[data-style="retro"] .panel .row h2{border-bottom:none;margin-bottom:0}
+:root[data-style="retro"] .ing li{border-bottom:1px solid var(--c-line)}
+:root[data-style="retro"] .ing li:last-child{border-bottom:none}
+:root[data-style="retro"] ol.steps li{border-bottom:1px solid var(--c-line);padding:4px 0 10px 4px;margin:0 0 8px}
+:root[data-style="retro"] ol.steps li:last-child{border-bottom:none}
+:root[data-style="retro"] ol.steps li::marker{font-family:"DM Serif Display",serif;color:var(--c);font-size:1.15em}
+:root[data-style="retro"] .notes{line-height:28px;background-image:repeating-linear-gradient(transparent 0 27px,var(--c-line) 27px 28px)}
+:root[data-style="retro"] .onecard{background:var(--card);border:2px solid var(--c);border-radius:14px;overflow:hidden;margin-top:12px}
+:root[data-style="retro"] .onecard .rhead{border:none;border-radius:0;margin:0;padding:18px;background:none}
+:root[data-style="retro"] .onecard .cols{border-top:1.5px solid var(--c);gap:0;align-items:stretch}
+:root[data-style="retro"] .onecard .panel{border:none;border-radius:0;margin:0;background:none;padding:16px 18px}
+:root[data-style="retro"] .onecard .cols>.panel+.panel{border-top:1.5px solid var(--c)}
+:root[data-style="retro"] .onecard .notespanel{border-top:1.5px solid var(--c)}
+@media (min-width:700px){
+  :root[data-style="retro"] .onecard .rhead{grid-template-columns:minmax(0,1fr) minmax(0,300px)}
+  :root[data-style="retro"] .onecard .rhead .hero,:root[data-style="retro"] .onecard .rhead .hero img{min-height:0;max-height:230px}
+  :root[data-style="retro"] .onecard .rhead .rimg{align-items:flex-start}
+  :root[data-style="retro"] .onecard .rhead .noimg{min-height:200px}
 }
+@media (max-width:699px){
+  :root[data-style="retro"] .onecard .rhead .hero img{max-height:200px}
+  :root[data-style="retro"] .fact .lb{font-size:11.5px;letter-spacing:0}
+  :root[data-style="retro"] .fact{min-width:0;flex:1}
+}
+@media (min-width:1000px){:root[data-style="retro"] .onecard .cols>.panel+.panel{border-top:none;border-left:1.5px solid var(--c)}}
 /* A5 page in card style */
 .a5.rc h1{font-family:"DM Serif Display",Georgia,serif;font-weight:400;font-size:25px;color:#2D2A26}
 .a5.rc h4{font-family:"Cormorant SC",Georgia,serif;font-weight:700;font-size:15px;color:var(--pc);letter-spacing:.08em;border-bottom:1.2px solid var(--pc);padding-bottom:2px}
@@ -243,8 +223,6 @@ label.f{display:block;font-size:13px;font-weight:600;color:var(--muted);margin:1
 .a5.rc .s .n{color:var(--pc)}
 .a5.rc .m{font-family:"Courier Prime","Courier New",monospace}
 .a5.rc .pimg{border-radius:8px}
-.a5 .frame{position:absolute;border:1.4px solid var(--pc);border-radius:12px}
-.a5 .pbrand{font-family:"Cormorant SC",Georgia,serif;font-weight:700;font-size:13px;letter-spacing:.12em;color:var(--pc);text-transform:uppercase}
 .empty{text-align:center;color:var(--muted);padding:50px 10px}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--surface)}
 .seg button{border:none;background:none;padding:6px 12px;cursor:pointer;font-size:14px}
@@ -1005,14 +983,9 @@ async function fetchImage(url) {
 const INKS = { green: '#3E7B4F', red: '#A63D38', brown: '#7B4F2E' };
 async function aiDrawImage(r) {
   const ings = (r.ingredients || []).filter(i => !i.header).slice(0, 8).map(i => i.item).join(', ');
-  const retro = (S.settings.style || 'retro') === 'retro';
-  const inkHex = INKS[S.settings.ink || 'green'] || INKS.green;
-  const style = retro
-    ? `Styl: vintage rycina botaniczna, jak ilustracja na starej karcie z przepisem. Rysunek kreskowy w JEDNYM kolorze ${inkHex}: cienkie linie (stroke) i kreskowanie dla cieni, bez innych kolorów, bez kolorowego tła (tło przezroczyste). Pokaż główny składnik potrawy (np. warzywo, owoc, zioło) albo samo danie, jeden wyraźny motyw na środku. Bez tekstu, bez ludzi.`
-    : null;
   const res = await ai(`Narysuj prostą ilustrację potrawy "${r.title}" (główne składniki: ${ings || 'brak'}) jako kod SVG.
-${style || `Styl: płaska ilustracja wektorowa, miękkie zaokrąglone kształty, pastelowe ciepłe kolory, bez konturów albo z bardzo cienkimi, delikatne cienie z półprzezroczystych kształtów, jasne kremowe tło (#FBF7F0), danie na talerzu lub w naczyniu widoczne z boku lub z góry, kilka składników obok jako dekoracja. Bez tekstu, bez ludzi.`}
-Wymagania techniczne: viewBox="0 0 400 300", width i height nieustawione, najwyżej ${style ? 120 : 70} elementów, tylko kształty (path, circle, ellipse, rect, polygon, g, defs, linearGradient, radialGradient, stop), bez <script>, bez obrazów, bez linków, bez czcionek.
+Styl: płaska ilustracja wektorowa, miękkie zaokrąglone kształty, pastelowe ciepłe kolory, bez konturów albo z bardzo cienkimi, delikatne cienie z półprzezroczystych kształtów, jasne kremowe tło (#FBF7F0), danie na talerzu lub w naczyniu widoczne z boku lub z góry, kilka składników obok jako dekoracja. Bez tekstu, bez ludzi.
+Wymagania techniczne: viewBox="0 0 400 300", width i height nieustawione, najwyżej 70 elementów, tylko kształty (path, circle, ellipse, rect, polygon, g, defs, linearGradient, radialGradient, stop), bez <script>, bez obrazów, bez linków, bez czcionek.
 Zwróć WYŁĄCZNIE JSON {"svg": "<svg ...>...</svg>"}.`, { modelTier: 'default' });
   let svg = String((res && res.svg) || '').trim();
   if (!/^<svg[\s>]/i.test(svg) || !/<\/svg>\s*$/i.test(svg)) throw new Error(tx('AI nie zwróciło poprawnej grafiki. Spróbuj jeszcze raz.'));
@@ -1506,25 +1479,6 @@ async function listMenu() {
 }
 
 // ---- recipe view ----
-function timeMinutes(v) {
-  const s = String(v || '').trim().toLowerCase();
-  if (!s) return 0;
-  if (/[-–]|\bdo\b|\bto\b|\bpo\b/.test(s)) return null; // ranges: no guessing
-  const iso = s.match(/^p(?:t)?(?:(\d+)h)?(?:(\d+)m)?$/);
-  if (iso && (iso[1] || iso[2])) return (+iso[1] || 0) * 60 + (+iso[2] || 0);
-  if (/^\d+$/.test(s)) return +s;
-  let m = 0, ok = false;
-  const hr = s.match(/(\d+(?:[.,]\d+)?)\s*(?:h|godz\w*|hours?|hrs?|timer?|time|t)\b/); if (hr) { m += parseFloat(hr[1].replace(',', '.')) * 60; ok = true; }
-  const mi = s.match(/(\d+)\s*(?:min\w*|m)\b/); if (mi) { m += +mi[1]; ok = true; }
-  return ok ? Math.round(m) : null;
-}
-function totalTime(a, b) {
-  if (!a || !b) return '';
-  const x = timeMinutes(a), y = timeMinutes(b);
-  if (x == null || y == null) return '';
-  const t = x + y; if (!t) return '';
-  return t >= 60 ? Math.floor(t / 60) + ' h' + (t % 60 ? ' ' + (t % 60) + ' min' : '') : t + ' min';
-}
 function renderRecipe() {
   const r = getR(S.id);
   if (!r) { goto('list'); return; }
@@ -1671,27 +1625,14 @@ function renderRecipe() {
   body.append(h('p', { class: 'hint-small dateline', style: 'margin-top:14px' }, tx('Dodano ') + new Date(r.createdAt || Date.now()).toLocaleDateString(S.settings.ui === 'en' ? 'en-GB' : 'pl-PL') + (r.updatedAt && r.updatedAt !== r.createdAt ? tx(' · zmieniono ') + new Date(r.updatedAt).toLocaleDateString(S.settings.ui === 'en' ? 'en-GB' : 'pl-PL') : '')));
 
   if ((S.settings.style || 'retro') === 'retro') {
-    const q = sel => body.querySelector(sel);
-    const rhead = q('.rhead'), title = q('.rinfo .rtitle'), statrow = q('.rinfo .statrow'), aigen = q('.rinfo .aigen'), tagsEl = q('.rinfo .tagline');
-    const imgEl = q('.rhead .rimg > *');
-    const ingP = q('.ingpanel'), stP = q('.stepspanel'), noP = q('.notespanel'), colsEl = q('.cols'), dateP = q('.dateline');
-    const dash = '–', loc = S.settings.ui === 'en' ? 'en-GB' : 'pl-PL';
-    const cell = (lbl, v) => h('div', { class: 'rc-cell' }, h('span', { class: 'rc-lb' }, lbl), h('span', { class: 'rc-v' }, v));
-    const srcV = r.source && (r.source.url || r.source.name) ? (r.source.url ? h('a', { href: r.source.url, target: '_blank', rel: 'noopener' }, r.source.name || hostOf(r.source.url)) : r.source.name) : dash;
-    ingP.querySelector('h2').remove();
-    const stHead = stP.firstElementChild; stHead.querySelector('h2').remove();
-    if (!stHead.children.length) stHead.remove(); else { stHead.removeAttribute('style'); stHead.className = 'rc-tools'; }
-    noP.querySelector('h2').remove();
-    const sec = (cls, label, nodes) => h('div', { class: cls }, h('div', { class: 'rc-vlab' }, label), h('div', { class: 'rc-body' }, nodes));
-    const card = h('div', { class: 'rcard' },
-      h('div', { class: 'rc-top' }, h('div', { class: 'rc-brand' }, tx('Przepis')), h('div', { class: 'rc-title' }, title, tagsEl && tagsEl.children.length ? tagsEl : null, statrow)),
-      h('div', { class: 'rc-row' }, cell(lab.source + ':', srcV), cell(tx('Kategoria:'), catLabel(r) || dash), cell(tx('Data:'), new Date(r.createdAt || Date.now()).toLocaleDateString(loc))),
-      h('div', { class: 'rc-row4' }, cell(lab.prep + ':', r.prepTime || dash), cell(lab.cook + ':', r.cookTime || dash), cell(tx('Razem:'), totalTime(r.prepTime, r.cookTime) || dash), cell(lab.servings + ':', r.servings ? String(curServ) : dash)),
-      h('div', { class: 'rc-mid' + (imgEl ? '' : ' noi') }, sec('rc-sec', lab.ing, Array.from(ingP.childNodes)), imgEl ? h('div', { class: 'rc-img' }, imgEl) : null),
-      sec('rc-sec rc-steps', lab.steps, Array.from(stP.childNodes)),
-      h('div', { class: 'rc-notes' }, h('span', { class: 'rc-lb' }, lab.notes + ':'), Array.from(noP.childNodes)));
-    if (aigen) rhead.replaceWith(aigen); else rhead.remove();
-    colsEl.replaceWith(card); noP.remove(); if (dateP) dateP.remove();
+    // one frame around header, ingredients, steps and notes
+    const rhead = body.querySelector('.rhead'), colsEl = body.querySelector('.cols'), noP = body.querySelector('.notespanel');
+    const ctrlEl = body.querySelector('.ctrl'), fh = body.querySelector('.factorhint');
+    if (rhead && colsEl && noP) {
+      const card = h('div', { class: 'onecard' });
+      rhead.before(card); card.append(rhead, colsEl, noP);
+      if (ctrlEl) card.before(ctrlEl); if (fh) card.before(fh);
+    }
   }
 
   const bar = h('div', { class: 'actionbar' }, h('div', { class: 'inner' },
@@ -2414,7 +2355,7 @@ function a5Blocks(item) {
   const t = trOf(r, lang), lab = L[lang] || L.pl, isOrig = lang === r.lang, mode = S.settings.units;
   const blocks = [];
   const meta = [catLabel(r, false), r.servings ? servText(r.servings * factor, lang) : '', r.prepTime && lab.prep + ': ' + r.prepTime, r.cookTime && lab.cook + ': ' + r.cookTime].filter(Boolean).join('  ·  ');
-  blocks.push(h('div', null, (S.settings.style || 'retro') === 'retro' ? h('div', { class: 'pbrand' }, ({ en: 'Recipe', da: 'Opskrift' })[lang] || 'Przepis') : null, S.imgs[r.id] ? h('div', { class: 'pimg', style: 'background-image:url("' + imgSrc(r.id).replace(/"/g, '%22') + '")' }) : null, r.aiGenerated ? h('div', { class: 'trn' }, '✦ ' + lab.aiRecipe) : null, t ? h('div', { class: 'trn' }, '✦ ' + lab.tr + ' ' + (LANGS[r.lang] || r.lang)) : null, h('h1', null, titleIn(r, lang)), meta ? h('div', { class: 'm' }, meta) : null));
+  blocks.push(h('div', null, S.imgs[r.id] ? h('div', { class: 'pimg', style: 'background-image:url("' + imgSrc(r.id).replace(/"/g, '%22') + '")' }) : null, r.aiGenerated ? h('div', { class: 'trn' }, '✦ ' + lab.aiRecipe) : null, t ? h('div', { class: 'trn' }, '✦ ' + lab.tr + ' ' + (LANGS[r.lang] || r.lang)) : null, h('h1', null, titleIn(r, lang)), meta ? h('div', { class: 'm' }, meta) : null));
   let first = true;
   r.ingredients.forEach((ing, i) => {
     const name = (t && t.items && t.items[i]) || ing.item;
@@ -2444,7 +2385,6 @@ function paginate(items, stage) {
     const newPage = () => {
       const rc = (S.settings.style || 'retro') === 'retro', pc = INKS[S.settings.ink || 'green'] || INKS.green;
       const pg = h('div', { class: 'a5' + (S.settings.compact ? ' compact' : '') + (rc ? ' rc' : ''), style: rc ? `--pc:${pc};--pcl:${pc}55` : '' });
-      if (rc) pg.append(h('div', { class: 'frame', style: `top:${top - Math.round(5 * mm)}px;bottom:${bottom - Math.round(5 * mm)}px;left:${inner - Math.round(5 * mm)}px;right:${outer - Math.round(5 * mm)}px` }));
       const body = h('div', { class: 'body', style: `top:${top}px;bottom:${bottom}px;left:${inner}px;right:${outer}px` });
       const foot = h('div', { class: 'foot', style: `left:${inner}px;right:${outer}px` });
       pg.append(body, foot); stage.append(pg); recPages.push({ pg, body, foot }); return body;
