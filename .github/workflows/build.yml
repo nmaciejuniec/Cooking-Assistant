@@ -37,13 +37,34 @@ jobs:
           APP_VERSION: 1.0.${{ github.run_number }}
       - name: Create Android project
         run: npx cap add android
-      - name: App icon, version, fixed signing key
+      - name: App icon and version
         run: |
           cp -r native/android/res/* android/app/src/main/res/
           sed -i "s/versionCode 1$/versionCode ${{ github.run_number }}/; s/versionName \"1.0\"/versionName \"1.0.${{ github.run_number }}\"/" android/app/build.gradle
           grep -n "versionCode\|versionName" android/app/build.gradle
-          mkdir -p ~/.android
-          cp native/android/debug.keystore ~/.android/debug.keystore
+      # Every version must be signed with the same key, or Android refuses to install it over the old one.
+      - name: Signing key (repository secret ANDROID_KEYSTORE_BASE64)
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then echo "::error::Missing secret ANDROID_KEYSTORE_BASE64 (Settings > Secrets and variables > Actions)"; exit 1; fi
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+          cat >> android/app/build.gradle <<EOF
+
+          android {
+              signingConfigs {
+                  cookingAssistant {
+                      storeFile file("$RUNNER_TEMP/release.keystore")
+                      storePassword "cooking-assistant"
+                      keyAlias "cookingassistant"
+                      keyPassword "cooking-assistant"
+                  }
+              }
+              buildTypes {
+                  debug { signingConfig signingConfigs.cookingAssistant }
+              }
+          }
+          EOF
       - name: Sync plugins
         run: npx cap sync android
       - name: Build APK
@@ -51,6 +72,15 @@ jobs:
         run: ./gradlew assembleDebug --no-daemon --stacktrace
       - name: Collect APK
         run: cp android/app/build/outputs/apk/debug/app-debug.apk CookingAssistant.apk
+      - name: Check the signing key
+        run: |
+          APKSIGNER="$(ls -d "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)"
+          "$APKSIGNER" verify --print-certs CookingAssistant.apk | tee certs.txt
+          if ! grep -qi "SHA-256 digest: 7c906db24f3c3717d16bb7d5bfa8fa734da05067731c93dc3d61ecb8a41d2d40" certs.txt; then
+            echo "::error::The APK is not signed with the Cooking Assistant key, so it would not install over the previous version."
+            exit 1
+          fi
+          echo "::notice::Signed with the Cooking Assistant key (SHA-256 7C:90:6D:B2...2D:40)"
       - uses: actions/upload-artifact@v4
         with:
           name: android

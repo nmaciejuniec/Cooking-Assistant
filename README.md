@@ -74,7 +74,10 @@ In the Claude version: **⋯ → Backup (JSON)** (Polish: *Kopia zapasowa (JSON)
 ## For developers
 - `index.html` is the whole app (plain HTML/JS, no build step).
 - Android: Capacitor (`capacitor.config.json`, icons in `native/android/res`).
-  `native/android/debug.keystore` is a fixed signing key so updates install over each other; it is a personal app key, not a secret.
+  The APK is signed with the app's own key, kept as the repository secret `ANDROID_KEYSTORE_BASE64`
+  (store/key password `cooking-assistant`, alias `cookingassistant`). The build checks the certificate
+  (SHA-256 `7C:90:6D:B2:4F:3C:37:17:D1:6B:B7:D5:BF:A8:FA:73:4D:A0:50:67:73:1C:93:DC:3D:61:EC:B8:A4:1D:2D:40`),
+  so every version installs over the previous one. Keep a private copy of the key: without it, updates cannot be installed over the app.
 - Mac: Electron (`electron/`), packaged by electron-builder and ad-hoc signed.
 - `.github/workflows/build.yml` builds both on every push to `main` and creates a Release.
 - `manifest.webmanifest`, `sw.js` and `icons/` let the same `index.html` also run as an installable web app if ever needed.
