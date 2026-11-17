@@ -55,7 +55,10 @@ jobs:
           path: CookingAssistant.apk
 
   mac:
-    runs-on: macos-latest
+    # Intel Mac runner: GitHub's Apple Silicon runners were not available (capacity).
+    # The app is still built for both Apple Silicon and Intel (--universal).
+    runs-on: macos-15-intel
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
