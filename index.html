@@ -538,28 +538,33 @@ function recipesFromJsonLd(html) {
     };
   });
 }
-// Recipe data written as schema.org microdata (itemprop attributes). DP = a DOMParser constructor.
+// Recipe data written as schema.org microdata (itemprop) or RDFa (property/typeof). DP = a DOMParser constructor.
 function recipesFromMicrodata(html, DP) {
-  if (!DP || !/schema\.org\/Recipe/i.test(html)) return [];
+  if (!DP || !/Recipe/.test(html)) return [];
   const doc = new DP().parseFromString(html, 'text/html');
-  const roots = Array.from(doc.querySelectorAll('[itemtype]')).filter(e => /schema\.org\/Recipe$/i.test((e.getAttribute('itemtype') || '').trim()));
+  const isRecipe = (e) => /schema\.org\/Recipe$/i.test((e.getAttribute('itemtype') || '').trim()) ||
+    (e.getAttribute('typeof') || '').split(/\s+/).some(t => /(^|[:/])Recipe$/.test(t));
+  const roots = Array.from(doc.querySelectorAll('[itemtype], [typeof]')).filter(isRecipe);
   const txt = (el) => ((el.getAttribute && (el.getAttribute('content') || '')) || el.textContent || '').replace(/\s+/g, ' ').trim();
+  const propNames = (e) => ((e.getAttribute('itemprop') || '') + ' ' + (e.getAttribute('property') || '')).split(/\s+/).filter(Boolean).map(x => x.replace(/^.*[:/]/, ''));
   return roots.map(root => {
-    const all = Array.from(root.querySelectorAll('[itemprop]'));
-    const props = (name) => all.filter(e => (e.getAttribute('itemprop') || '').split(/\s+/).includes(name));
-    const title = props('name').map(txt).find(Boolean) || '';
+    const ownScope = (e) => { for (let p = e.parentElement; p && p !== root; p = p.parentElement) if (p.hasAttribute('itemscope') || p.hasAttribute('typeof')) return false; return true; };
+    const all = Array.from(root.querySelectorAll('[itemprop], [property]')).filter(ownScope);
+    const props = (name) => all.filter(e => propNames(e).includes(name));
+    const h1 = doc.querySelector('h1');
+    const title = props('name').map(txt).find(Boolean) || (h1 ? txt(h1) : '');
     const ings = props('recipeIngredient').concat(props('ingredients')).map(txt).filter(Boolean);
     const steps = [];
     props('recipeInstructions').forEach(e => {
-      const items = Array.from(e.querySelectorAll('li, p'));
+      const items = Array.from(e.querySelectorAll('li, p, [itemprop~="text"]'));
       if (items.length) items.forEach(i => { const t = txt(i); if (t) steps.push(t); });
       else { const t = txt(e); if (t) steps.push(t); }
     });
-    const uniq = steps.filter((x, i) => steps.indexOf(x) === i);
+    const uniq = steps.filter((x, i) => steps.indexOf(x) === i && !steps.some((y, j) => j !== i && y.length > x.length && y.includes(x)));
     const y = props('recipeYield').map(txt).find(Boolean) || '';
     const yn = parseInt(y, 10);
-    const dur = (n) => { const e = props(n)[0]; return e ? isoDur(e.getAttribute('content') || e.getAttribute('datetime') || '') : ''; };
-    return { title, servings: isNaN(yn) ? null : yn, prepTime: dur('prepTime'), cookTime: dur('cookTime'),
+    const dur = (n) => { const e = props(n)[0]; return e ? isoDur(e.getAttribute('content') || e.getAttribute('datetime') || txt(e)) : ''; };
+    return { title, servings: isNaN(yn) ? null : yn, prepTime: dur('prepTime'), cookTime: dur('cookTime') || dur('totalTime'),
       ingredients: ings.map(parseIngredientLine).filter(Boolean), steps: uniq, category: '', tags: [] };
   }).filter(r => r.title && (r.ingredients.length || r.steps.length));
 }
