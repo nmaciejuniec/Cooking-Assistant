@@ -31,6 +31,7 @@ Do not uninstall the app before updating: uninstalling deletes the recipes store
    (the app is not signed with a paid Apple certificate). Click **Done**,
    then open **System Settings → Privacy & Security**, scroll down and click **Open Anyway** next to Cooking Assistant,
    and confirm. After that it opens normally.
+4. For home Wi-Fi sync, macOS asks once whether the app may find devices on the local network: click **Allow**.
 
 **Updating:** download the new DMG and drag the app into Applications again (replace). Recipes stay.
 
@@ -72,25 +73,33 @@ In the Claude version: **⋯ → Backup (JSON)** (Polish: *Kopia zapasowa (JSON)
 - Add recipes from a link (the app downloads the page and reads the recipe), a photo, PDF, Word (.docx), text file, pasted text, or manually.
   If a website refuses the download, copy the recipe text and paste it instead.
 - Original language kept, AI translations to Polish, English and Danish
-- Scale servings, grams/ml conversion (approximate values marked ≈), °F → °C
-- Categories, tags, search (including ingredients), Favourites and To try
+- Scale servings; units as written, in g/ml, or in cups and spoons (approximate values marked ≈); °F → °C
+- Categories with subcategories (e.g. Cakes › Cheesecakes), tags, search (including ingredients), Favourites and To try
 - A picture for every recipe: the photo from the recipe page (downloaded automatically when adding from a link),
   your own photo, or a simple illustration drawn by Claude (marked as an AI picture)
 - Personal notes, and clearly marked AI notes that never mix with the original recipe
-- Cook mode: ingredients and steps on one screen, the current step's ingredients highlighted with amounts, screen kept on
+- Simplify long steps with AI (marked, the original can be restored with one tap)
+- Cook mode: ingredients and steps on one screen, the current step's ingredients highlighted with amounts,
+  ingredients ticked off as steps are finished, screen kept on
 - Duplicate and similar recipe detection
 - A5 PDF for one recipe or a whole recipe notebook
 - Cooking assistant that knows both of your tastes and remembers lasting preferences
-- Light, dark or system theme; interface in Polish or English
+- Home Wi-Fi sync between the tablet and the Mac (see above)
+- Recipe-card look in green, red or brown (or the plain Modern look); light, dark or system theme; interface in Polish or English
 
 ## For developers
 - `index.html` is the whole app (plain HTML/JS, no build step).
-- Android: Capacitor (`capacitor.config.json`, icons in `native/android/res`).
+- Android: Capacitor (`capacitor.config.json`). `scripts/android-native.sh` adds our own parts to the generated
+  project: icons (`native/android/res`), the home Wi-Fi sync plugin (`native/android/java/LanSyncPlugin.java`,
+  Bonjour via `NsdManager` + TCP) and its permissions.
   The APK is signed with the app's own key, kept as the repository secret `ANDROID_KEYSTORE_BASE64`
   (store/key password `cooking-assistant`, alias `cookingassistant`). The build checks the certificate
   (SHA-256 `7C:90:6D:B2:4F:3C:37:17:D1:6B:B7:D5:BF:A8:FA:73:4D:A0:50:67:73:1C:93:DC:3D:61:EC:B8:A4:1D:2D:40`),
   so every version installs over the previous one. Keep a private copy of the key: without it, updates cannot be installed over the app.
-- Mac: Electron (`electron/`), packaged by electron-builder and ad-hoc signed.
+- Mac: Electron (`electron/`), packaged by electron-builder and ad-hoc signed. Wi-Fi sync uses `bonjour-service` + TCP in `electron/main.js`.
+- Wi-Fi sync logic, encryption (AES-256-GCM, key from a 32-byte secret via HKDF) and pairing (QR / 24 BIP39 words) live in `index.html`;
+  the native parts only find devices and move encrypted bytes.
+- `vendor/`: `qrcode.js` (qrcode-generator, MIT) and `jsQR.js` (jsQR, Apache-2.0) for showing and scanning the pairing QR code.
 - `.github/workflows/build.yml` builds both on every push to `main` and creates a Release.
 - `manifest.webmanifest`, `sw.js` and `icons/` let the same `index.html` also run as an installable web app if ever needed.
 - `scripts/test-links.mjs` + `tests/links.txt`: a GitHub Actions check that recipe websites can be read (results appear as notes on the run).
