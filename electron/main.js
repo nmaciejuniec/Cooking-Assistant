@@ -46,6 +46,20 @@ ipcMain.handle('fetchUrl', async (_e, url) => {
   }
 });
 
+// Downloads a picture (recipe photo) and returns it as base64.
+ipcMain.handle('fetchBinary', async (_e, url) => {
+  try {
+    if (!/^https?:\/\//i.test(String(url))) return { status: 0 };
+    const r = await fetch(String(url), { redirect: 'follow', headers: { 'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36' } });
+    if (!r.ok) return { status: r.status };
+    const buf = Buffer.from(await r.arrayBuffer());
+    if (buf.length > 15000000) return { status: 413 };
+    return { status: r.status, type: r.headers.get('content-type') || 'image/jpeg', b64: buf.toString('base64') };
+  } catch (err) {
+    return { status: 0, error: String(err && err.message || err) };
+  }
+});
+
 app.whenReady().then(() => {
   if (process.platform === 'darwin') Menu.setApplicationMenu(Menu.buildFromTemplate([
     { role: 'appMenu' }, { role: 'editMenu' }, { role: 'viewMenu' }, { role: 'windowMenu' },

@@ -118,6 +118,16 @@ label.f{display:block;font-size:13px;font-weight:600;color:var(--muted);margin:1
 .stattag{margin-right:4px}
 .stattag.flag{background:var(--gold-bg);color:var(--ink)}
 .stattag.bad{background:var(--err-bg);color:var(--danger)}
+.card.withimg{padding-top:0;overflow:hidden}
+.card .thumb{height:140px;margin:0 -14px 12px;background-size:cover;background-position:center;background-color:var(--accent-soft)}
+.hero{position:relative;margin-top:14px;border-radius:var(--radius);overflow:hidden;background:var(--accent-soft)}
+.hero img{display:block;width:100%;max-height:340px;object-fit:cover}
+.hero.svg{background:#FBF7F0}
+.hero.svg img{object-fit:contain;height:300px}
+.herotag{position:absolute;left:10px;top:10px;background:var(--ai-bg);color:var(--ai);border:1px dashed var(--ai-line);border-radius:999px;padding:2px 10px;font-size:12px}
+.heroacts{position:absolute;right:10px;bottom:10px;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.noimg{margin-top:14px;border:2px dashed var(--line);border-radius:var(--radius);padding:12px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+.a5 .pimg{height:130px;border-radius:6px;background-size:cover;background-position:center;margin-bottom:10px}
 .empty{text-align:center;color:var(--muted);padding:50px 10px}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--surface)}
 .seg button{border:none;background:none;padding:6px 12px;cursor:pointer;font-size:14px}
@@ -568,6 +578,17 @@ function recipesFromMicrodata(html, DP) {
       ingredients: ings.map(parseIngredientLine).filter(Boolean), steps: uniq, category: '', tags: [] };
   }).filter(r => r.title && (r.ingredients.length || r.steps.length));
 }
+// Picture of the dish: recipe data image first, then the page's og:image.
+function pageImage(html, base) {
+  let url = '';
+  const re = /<script[^>]*application\/ld\+json[^>]*>([\s\S]*?)<\/script>/gi; let m;
+  const pick = (im) => typeof im === 'string' ? im : Array.isArray(im) ? pick(im[0]) : (im && (im.url || im.contentUrl)) || '';
+  const visit = (o) => { if (url || !o || typeof o !== 'object') return; if (Array.isArray(o)) return o.forEach(visit); const t = o['@type']; if ((t === 'Recipe' || (Array.isArray(t) && t.includes('Recipe'))) && o.image) url = pick(o.image); if (o['@graph']) visit(o['@graph']); };
+  while (!url && (m = re.exec(html))) { try { visit(JSON.parse(m[1].trim())); } catch (e) { } }
+  if (!url) { const og = html.match(/<meta[^>]+(?:property|name)=["']og:image(?::url)?["'][^>]*>/i); if (og) { const c = og[0].match(/content=["']([^"']+)["']/i); if (c) url = c[1]; } }
+  if (!url) return '';
+  try { return new URL(url.replace(/&amp;/g, '&'), base).href; } catch (e) { return ''; }
+}
 function recipesFromHtml(html, DP) { const ld = recipesFromJsonLd(html); return ld.length ? ld : recipesFromMicrodata(html, DP); }
 function stripTags(s) { return String(s).replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/\s+/g, ' ').trim(); }
 function isoDur(d) {
@@ -755,17 +776,80 @@ function ldToText(x) {
     'Składniki:', ...x.ingredients.map(ingredientToLine), 'Przygotowanie:', ...x.steps.map((st, i) => (i + 1) + '. ' + st)].filter(Boolean).join('\n');
 }
 function refreshAi() { S.sample = apiKey() ? apiSample : null; S.sampleImages = true; }
+// ---- recipe images: kept in IndexedDB (localStorage is too small for photos) ----
+const IDB = {
+  db: null,
+  open() {
+    if (!this.db) this.db = new Promise((res, rej) => {
+      try { const q = indexedDB.open('cookingAssistant', 1); q.onupgradeneeded = () => q.result.createObjectStore('images'); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); }
+      catch (e) { rej(e); }
+    });
+    return this.db;
+  },
+  async tx(mode, fn) { const db = await this.open(); return new Promise((res, rej) => { const t = db.transaction('images', mode); const st = t.objectStore('images'); const out = fn(st); t.oncomplete = () => res(out && out.result); t.onerror = () => rej(t.error); }); },
+  set(k, v) { return this.tx('readwrite', st => st.put(v, k)); },
+  del(k) { return this.tx('readwrite', st => st.delete(k)); },
+  async all() {
+    const db = await this.open();
+    return new Promise((res, rej) => { const out = {}; const t = db.transaction('images', 'readonly'); const c = t.objectStore('images').openCursor(); c.onsuccess = () => { const cur = c.result; if (cur) { out[cur.key] = cur.value; cur.continue(); } }; t.oncomplete = () => res(out); t.onerror = () => rej(t.error); });
+  },
+};
+S.imgs = {};
+async function loadImages() { try { S.imgs = await IDB.all(); } catch (e) { S.imgs = {}; } }
+async function setImage(id, data, kind) {
+  S.imgs[id] = data;
+  try { await IDB.set(id, data); } catch (e) { toast(tx('Nie udało się zapisać zdjęcia na tym urządzeniu')); }
+  const r = getR(id); if (r) { const nr = clean(r); nr.image = { kind, at: Date.now() }; await saveRecipe(nr); }
+}
+async function removeImage(id) {
+  delete S.imgs[id]; try { await IDB.del(id); } catch (e) { }
+  const r = getR(id); if (r) { const nr = clean(r); nr.image = null; await saveRecipe(nr); }
+}
+function imgSrc(id) { const d = S.imgs[id]; if (!d) return ''; return d.startsWith('<svg') ? 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(d) : d; }
+// Shrinks any picture to a JPEG data URL, max 900 px wide.
+function shrinkToDataUrl(srcUrl, max = 900) {
+  return new Promise((res, rej) => {
+    const im = new Image();
+    im.onload = () => { const sc = Math.min(1, max / Math.max(im.width, im.height)); const c = document.createElement('canvas'); c.width = Math.round(im.width * sc); c.height = Math.round(im.height * sc); c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); res(c.toDataURL('image/jpeg', 0.82)); };
+    im.onerror = () => rej(new Error(tx('Nie udało się odczytać zdjęcia')));
+    im.src = srcUrl;
+  });
+}
+async function fileToImage(file) { const url = URL.createObjectURL(file); try { return await shrinkToDataUrl(url); } finally { URL.revokeObjectURL(url); } }
+// Picture of the dish from the recipe page (recipe data or og:image), downloaded by the app.
+async function fetchImage(url) {
+  let b64 = '', type = 'image/jpeg';
+  if (window.native && window.native.fetchBinary) { const r = await window.native.fetchBinary(url); if (!r || !r.b64) throw new Error('image'); b64 = r.b64; type = r.type || type; }
+  else if (NATIVE === 'android' && CAP('CapacitorHttp')) { const r = await CAP('CapacitorHttp').get({ url, responseType: 'blob' }); if (!r || r.status >= 400 || typeof r.data !== 'string') throw new Error('image'); b64 = r.data; type = (r.headers && (r.headers['Content-Type'] || r.headers['content-type'])) || type; }
+  else throw new Error('image');
+  return shrinkToDataUrl('data:' + String(type).split(';')[0] + ';base64,' + b64);
+}
+async function aiDrawImage(r) {
+  const ings = (r.ingredients || []).filter(i => !i.header).slice(0, 8).map(i => i.item).join(', ');
+  const res = await ai(`Narysuj prostą ilustrację potrawy "${r.title}" (główne składniki: ${ings || 'brak'}) jako kod SVG.
+Styl: płaska ilustracja wektorowa, miękkie zaokrąglone kształty, pastelowe ciepłe kolory, bez konturów albo z bardzo cienkimi, delikatne cienie z półprzezroczystych kształtów, jasne kremowe tło (#FBF7F0), danie na talerzu lub w naczyniu widoczne z boku lub z góry, kilka składników obok jako dekoracja. Bez tekstu, bez ludzi.
+Wymagania techniczne: viewBox="0 0 400 300", width i height nieustawione, najwyżej 70 elementów, tylko kształty (path, circle, ellipse, rect, polygon, g, defs, linearGradient, radialGradient, stop), bez <script>, bez obrazów, bez linków, bez czcionek.
+Zwróć WYŁĄCZNIE JSON {"svg": "<svg ...>...</svg>"}.`, { modelTier: 'default' });
+  let svg = String((res && res.svg) || '').trim();
+  if (!/^<svg[\s>]/i.test(svg) || !/<\/svg>\s*$/i.test(svg)) throw new Error(tx('AI nie zwróciło poprawnej grafiki. Spróbuj jeszcze raz.'));
+  svg = svg.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/\son\w+="[^"]*"/gi, '').replace(/<(image|foreignObject|a)\b[\s\S]*?(<\/\1>|\/>)/gi, '');
+  if (!/xmlns=/.test(svg)) svg = svg.replace(/^<svg/i, '<svg xmlns="http://www.w3.org/2000/svg"');
+  return svg;
+}
 async function initStore() {
   S.local = true;
   S.recipes = lsGet('cookingAssistant.local', []);
   S.deleted = lsGet('cookingAssistant.deleted', []);
   S.downloads = fileDownloads;
   refreshAi();
+  await loadImages();
   S.loaded = true; render();
   try { if (navigator.storage && navigator.storage.persist) S.persisted = await navigator.storage.persist(); } catch (e) { }
 }
 function persistLocal() { lsSet('cookingAssistant.local', S.recipes); }
 async function saveRecipe(r) {
+  const pendingImg = r._img; delete r._img;
+  if (pendingImg) { r.image = { kind: pendingImg.kind, at: Date.now() }; S.imgs[r.id] = pendingImg.data; try { await IDB.set(r.id, pendingImg.data); } catch (e) { } }
   r.updatedAt = Date.now(); if (!r.createdAt) r.createdAt = r.updatedAt;
   const i = S.recipes.findIndex(x => x.id === r.id);
   if (i >= 0) S.recipes[i] = clean(r); else S.recipes.push(clean(r));
@@ -774,12 +858,14 @@ async function saveRecipe(r) {
 }
 async function deleteRecipe(id) {
   S.recipes = S.recipes.filter(r => r.id !== id);
+  delete S.imgs[id]; try { await IDB.del(id); } catch (e) { }
   S.deleted = S.deleted.filter(d => d.id !== id).concat([{ id, at: Date.now() }]).slice(-2000);
   persistLocal(); lsSet('cookingAssistant.deleted', S.deleted);
 }
 // ---- sync file ----
 function syncPayload(withAssistant) {
   const p = { app: 'cooking-assistant', version: 2, exportedAt: new Date().toISOString(), recipes: S.recipes.map(clean), deleted: S.deleted };
+  const imgs = {}; S.recipes.forEach(r => { if (S.imgs[r.id]) imgs[r.id] = S.imgs[r.id]; }); p.images = imgs;
   if (withAssistant) { const a = lsGet('cookingAssistant.asst', null); if (a) p.assistant = a; }
   return p;
 }
@@ -798,8 +884,8 @@ function mergeSync(j) {
     const cur = byId.get(r.id);
     if (!cur) {
       if (localTomb.has(r.id) && localTomb.get(r.id) >= r.updatedAt) continue;
-      byId.set(r.id, r); st.added++;
-    } else if ((r.updatedAt || 0) > (cur.updatedAt || 0)) { byId.set(r.id, r); st.updated++; }
+      byId.set(r.id, r); st.added++; r._new = true;
+    } else if ((r.updatedAt || 0) > (cur.updatedAt || 0)) { byId.set(r.id, r); st.updated++; if (!r.image) { delete S.imgs[r.id]; IDB.del(r.id).catch(() => { }); } }
     else st.same++;
   }
   for (const t of tombs) {
@@ -808,6 +894,8 @@ function mergeSync(j) {
     if (cur && (cur.updatedAt || 0) <= t.at) { byId.delete(t.id); st.removed++; }
     if (!localTomb.has(t.id) || localTomb.get(t.id) < t.at) localTomb.set(t.id, t.at);
   }
+  const inImgs = (j && typeof j.images === 'object' && j.images) || {};
+  byId.forEach((r, id) => { if (inImgs[id] && r.image && (r._new || !S.imgs[id] || (incoming.find(x => x && x.id === id) || {}).updatedAt === r.updatedAt)) { S.imgs[id] = inImgs[id]; IDB.set(id, inImgs[id]).catch(() => { }); } delete r._new; });
   S.recipes = Array.from(byId.values());
   S.deleted = Array.from(localTomb, ([id, at]) => ({ id, at })).filter(d => !byId.has(d.id)).slice(-2000);
   persistLocal(); lsSet('cookingAssistant.deleted', S.deleted);
@@ -825,6 +913,23 @@ function mergeSync(j) {
 }
 function syncSummary(st) { return tx('Nowe: ') + st.added + ' · ' + tx('zaktualizowane: ') + st.updated + ' · ' + tx('usunięte: ') + st.removed; }
 // ---- settings ----
+async function aiDrawMissing() {
+  const todo = S.recipes.filter(r => !S.imgs[r.id]);
+  if (!todo.length) { toast(tx('Wszystkie przepisy mają obrazek')); return; }
+  const ok = await modal(tx('Grafiki AI'), h('p', null, tx('Claude narysuje prostą grafikę dla przepisów bez obrazka: ') + todo.length + '. ' + tx('Każda grafika to jedno zapytanie do API (płatne z Twojego klucza). Możesz przerwać w każdej chwili.')),
+    [{ label: tx('Anuluj'), value: false }, { label: tx('Rysuj'), value: true, primary: true }]);
+  if (!ok) return;
+  let stop = false, done = 0;
+  const info = h('span', null, '');
+  const bg = h('div', { class: 'modal-bg' }, h('div', { class: 'modal' }, h('span', { class: 'spinner' }), ' ', info, h('div', { class: 'acts' }, h('button', { class: 'btn', onclick: () => { stop = true; } }, tx('Przerwij')))));
+  document.body.append(bg);
+  for (const r of todo) {
+    if (stop) break;
+    info.textContent = tx('Rysuję') + ' ' + (done + 1) + '/' + todo.length + ': ' + r.title;
+    try { await setImage(r.id, await aiDrawImage(r), 'ai'); done++; } catch (e) { toast(r.title + ': ' + e.message, 3000); }
+  }
+  bg.remove(); toast(tx('Gotowe: ') + done); render();
+}
 async function aiSubcategories() {
   const todo = S.recipes.filter(r => r.category && !r.subcategory).slice(0, 150);
   if (!todo.length) { toast(tx('Wszystkie przepisy z kategorią mają już podkategorię')); return; }
@@ -1136,7 +1241,8 @@ function renderList() {
     gridWrap.append(h('div', { class: 'grid' }, list.map(r => {
       const lang = displayLang(r);
       const time = [r.prepTime, r.cookTime].filter(Boolean).join(' + ');
-      return h('div', { class: 'card', onclick: () => goto('recipe', r.id) },
+      return h('div', { class: 'card' + (S.imgs[r.id] ? ' withimg' : ''), onclick: () => goto('recipe', r.id) },
+        S.imgs[r.id] ? h('div', { class: 'thumb', style: 'background-image:url("' + imgSrc(r.id).replace(/"/g, '%22') + '")' }) : null,
         h('div', { class: 'row', style: 'align-items:flex-start' }, h('h3', { class: 'grow' }, titleIn(r, lang)),
           S.canWrite ? h('button', { class: 'iconbtn', style: 'font-size:18px;padding:2px 6px;margin:-4px -6px 0 0;color:' + (r.status === 'fav' ? '#C8902A' : '#c9bfb4'), title: r.status === 'fav' ? tx('Usuń z ulubionych') : tx('Dodaj do ulubionych'), onclick: (e) => { e.stopPropagation(); setStatus(r, r.status === 'fav' ? '' : 'fav'); } }, r.status === 'fav' ? '★' : '☆')
             : (r.status === 'fav' ? h('span', { style: 'color:#C8902A' }, '★') : null)),
@@ -1172,6 +1278,7 @@ async function listMenu() {
     { label: '⚙ ' + tx('Ustawienia i synchronizacja'), value: 'settings' },
     { label: tx('Duplikaty'), value: 'dupes' },
     aiReady() ? { label: '✦ ' + tx('Uzupełnij podkategorie (AI)'), value: 'subs', ai: true } : null,
+    aiReady() ? { label: '✦ ' + tx('Grafiki AI dla przepisów bez obrazka'), value: 'imgs', ai: true } : null,
     { label: tx('Zamknij'), value: null },
   ].filter(Boolean));
   if (v === 'pdf') { if (!list.length) return toast(tx('Brak przepisów')); pdfFlow(list.map(r => ({ r, lang: displayLang(r), factor: 1 })), 'recipe-notebook'); }
@@ -1180,6 +1287,7 @@ async function listMenu() {
   if (v === 'settings') goto('settings');
   if (v === 'dupes') goto('dupes');
   if (v === 'subs') aiSubcategories();
+  if (v === 'imgs') aiDrawMissing();
 }
 
 // ---- recipe view ----
@@ -1221,6 +1329,16 @@ function renderRecipe() {
     const stale = t.sig && t.sig !== sig(r);
     body.append(h('div', { class: 'trbanner' }, '✦ ' + lab.tr + ' ' + (LANGS[r.lang] || r.lang) + tx('. Ilości i liczby są z oryginału.'),
       stale ? h('span', null, tx(' Oryginał zmienił się od tłumaczenia. '), h('button', { class: 'btn small ai', onclick: async (e) => { e.target.disabled = true; try { const tr = await aiTranslate(r, lang); const nr = clean(r); nr.tr[lang] = tr; await saveRecipe(nr); render(); } catch (er) { toast(er.message); e.target.disabled = false; } } }, tx('Odśwież'))) : null));
+  }
+  const imgInput = h('input', { type: 'file', accept: 'image/*', style: 'display:none', onchange: async () => { const f = imgInput.files && imgInput.files[0]; if (!f) return; try { await setImage(r.id, await fileToImage(f), 'photo'); render(); } catch (e) { toast(e.message); } } });
+  const drawBtn = () => { const b = h('button', { class: 'btn small ai', disabled: !aiReady() }, '✦ ' + tx('Grafika AI')); b.onclick = async () => { b.disabled = true; b.innerHTML = ''; b.append(h('span', { class: 'spinner' }), ' ' + tx('Rysuję…')); try { await setImage(r.id, await aiDrawImage(r), 'ai'); render(); } catch (e) { toast(e.message, 4000); render(); } }; return b; };
+  const webBtn = () => (r.source && r.source.url && canFetchPages()) ? h('button', { class: 'btn small', onclick: async (e) => { e.target.disabled = true; try { const html = await fetchPage(r.source.url); const pic = pageImage(html, r.source.url); if (!pic) throw new Error(tx('Na stronie nie ma zdjęcia przepisu')); await setImage(r.id, await fetchImage(pic), 'web'); render(); } catch (er) { toast(er.message === 'image' ? tx('Nie udało się pobrać zdjęcia') : er.message, 4000); e.target.disabled = false; } } }, '🌐 ' + tx('Zdjęcie ze strony')) : null;
+  if (S.imgs[r.id]) {
+    body.append(h('div', { class: 'hero' + (String(S.imgs[r.id]).startsWith('<svg') ? ' svg' : '') }, h('img', { src: imgSrc(r.id), alt: '' }),
+      r.image && r.image.kind === 'ai' ? h('span', { class: 'herotag' }, '✦ ' + tx('grafika AI')) : null,
+      S.canWrite ? h('div', { class: 'heroacts' }, h('button', { class: 'btn small', onclick: () => imgInput.click() }, '📷 ' + tx('Zmień')), drawBtn(), h('button', { class: 'btn small danger', onclick: async () => { await removeImage(r.id); render(); } }, tx('Usuń'))) : null), imgInput);
+  } else if (S.canWrite) {
+    body.append(h('div', { class: 'noimg' }, h('span', { class: 'hint-small' }, tx('Brak obrazka')), h('div', { class: 'row wrapflex' }, h('button', { class: 'btn small', onclick: () => imgInput.click() }, '📷 ' + tx('Dodaj zdjęcie')), webBtn(), drawBtn())), imgInput);
   }
   body.append(h('h1', { class: 'rtitle' }, (t && t.title) || r.title));
   if (r.aiGenerated) body.append(h('div', { class: 'trbanner' }, '✦ ' + tx('Ten przepis wymyśliło AI (asystent). Nie pochodzi ze sprawdzonego źródła, więc sprawdź ilości i czasy.')));
@@ -1603,6 +1721,8 @@ function renderImport() {
         setBusy('');
         if (!res || !res.length) { status.append(h('div', { class: 'banner' }, tx('Nie znalazłam przepisu na tej stronie. Skopiuj tekst i wklej poniżej.'))); fetchBtn.disabled = false; return; }
         res.forEach(r => { r.source = Object.assign({}, r.source, { url: u, name: (r.source && r.source.name) || hostOf(u), type: 'link' }); });
+        const picUrl = pageImage(html, u);
+        if (picUrl) { setBusy(tx('Pobieram zdjęcie ze strony…')); try { const data = await fetchImage(picUrl); res.forEach(r => { r._img = { data, kind: 'web' }; }); } catch (e) { } }
         S.pending = res; goto('review');
       } catch (e) { setBusy(''); status.innerHTML = ''; status.append(h('div', { class: 'banner' }, e.message || String(e))); fetchBtn.disabled = false; }
     };
@@ -2004,7 +2124,7 @@ function a5Blocks(item) {
   const t = trOf(r, lang), lab = L[lang] || L.pl, isOrig = lang === r.lang, mode = S.settings.units;
   const blocks = [];
   const meta = [catLabel(r, false), r.servings ? servText(r.servings * factor, lang) : '', r.prepTime && lab.prep + ': ' + r.prepTime, r.cookTime && lab.cook + ': ' + r.cookTime].filter(Boolean).join('  ·  ');
-  blocks.push(h('div', null, r.aiGenerated ? h('div', { class: 'trn' }, '✦ ' + lab.aiRecipe) : null, t ? h('div', { class: 'trn' }, '✦ ' + lab.tr + ' ' + (LANGS[r.lang] || r.lang)) : null, h('h1', null, titleIn(r, lang)), meta ? h('div', { class: 'm' }, meta) : null));
+  blocks.push(h('div', null, S.imgs[r.id] ? h('div', { class: 'pimg', style: 'background-image:url("' + imgSrc(r.id).replace(/"/g, '%22') + '")' }) : null, r.aiGenerated ? h('div', { class: 'trn' }, '✦ ' + lab.aiRecipe) : null, t ? h('div', { class: 'trn' }, '✦ ' + lab.tr + ' ' + (LANGS[r.lang] || r.lang)) : null, h('h1', null, titleIn(r, lang)), meta ? h('div', { class: 'm' }, meta) : null));
   let first = true;
   r.ingredients.forEach((ing, i) => {
     const name = (t && t.items && t.items[i]) || ing.item;
@@ -2101,6 +2221,7 @@ Object.assign(UI_EN, {"Wszystkie w kategorii": "All in category", "Kategorie": "
 Object.assign(UI_EN, {"Sprawdzone": "Tried", "Nie wyszło": "Didn't work", "Na okazje": "Special occasions", "Szybkie": "Quick", "Wszystkie kategorie": "All categories"});
 Object.assign(UI_EN, {"Link musi zaczynać się od https://": "The link must start with https://", "Pobieranie stron działa tylko w aplikacji na Androida i na Maca.": "Fetching pages only works in the Android and Mac apps.", "Ta strona nie pozwoliła pobrać przepisu": "This website did not allow the recipe to be fetched", "Skopiuj tekst i wklej poniżej.": "Copy the text and paste it below.", "Pobierz przepis": "Fetch recipe", "Wklej link do przepisu": "Paste a recipe link", "Pobieram stronę…": "Fetching the page…", "AI porządkuje przepis…": "AI is tidying up the recipe…", "Na tej stronie nie ma danych przepisu, a do odczytania tekstu potrzebne jest AI (klucz API w Ustawieniach).": "This page has no recipe data, and reading its text needs AI (API key in Settings).", "Nie znalazłam przepisu na tej stronie. Skopiuj tekst i wklej poniżej.": "No recipe found on this page. Copy the text and paste it below.", "Z linku: ": "From a link: ", "wklej link i kliknij „Pobierz przepis”. Jeśli strona nie pozwoli go pobrać, skopiuj tekst przepisu i wklej go niżej.": "paste the link and tap “Fetch recipe”. If the website does not allow it, copy the recipe text and paste it below.", "Link do przepisu": "Recipe link", "…albo wklej tekst przepisu": "…or paste the recipe text"});
 Object.assign(UI_EN, {"Nie udało się zapisać danych na tym urządzeniu": "Could not save data on this device", "Klucz jest zapisany tylko w aplikacji na tym urządzeniu. Nie trafia do pliku synchronizacji. Bez klucza aplikacja działa, ale bez funkcji AI.": "The key is stored only in the app on this device. It is never put in the sync file. Without a key the app works, just without AI features.", "dane są zapisane w aplikacji; odinstalowanie jej albo „Wyczyść dane” w ustawieniach Androida je usuwa, więc rób czasem plik synchronizacji jako kopię": "data is stored in the app; uninstalling it or “Clear data” in Android settings deletes it, so save a sync file now and then as a backup", "dane są zapisane w aplikacji i zostają przy aktualizacjach; rób czasem plik synchronizacji jako kopię": "data is stored in the app and kept through updates; save a sync file now and then as a backup", "Ekran może się wygaszać: to urządzenie nie pozwala go zablokować": "The screen may dim: this device does not allow keeping it on", "Bez klucza API rozpoznawanie przepisów ze zdjęć, plików i wklejonego tekstu nie działa. Działają: pobieranie z linku (gdy strona ma zapisane dane przepisu), zapisana strona .html, plik synchronizacji .json i dodawanie ręczne. Klucz dodasz w Ustawieniach.": "Without an API key, reading recipes from photos, files and pasted text does not work. Still working: fetching from a link (when the page contains recipe data), a saved .html page, a .json sync file and manual entry. Add a key in Settings.", "Profil i pamięć asystenta są zapisane na tym urządzeniu i trafiają do pliku synchronizacji. Rozmowy zostają tylko tutaj.": "The assistant profile and memory are stored on this device and included in the sync file. Chats stay on this device only.", "Dodaj pierwszy przepis z linku, zdjęcia, pliku albo wpisz go ręcznie.": "Add your first recipe from a link, a photo, a file, or type it in."});
+Object.assign(UI_EN, {"Nie udało się zapisać zdjęcia na tym urządzeniu": "Could not save the picture on this device", "Nie udało się odczytać zdjęcia": "Could not read the picture", "AI nie zwróciło poprawnej grafiki. Spróbuj jeszcze raz.": "AI did not return a valid picture. Try again.", "Pobieram zdjęcie ze strony…": "Fetching the picture from the page…", "Grafika AI": "AI picture", "Rysuję…": "Drawing…", "Na stronie nie ma zdjęcia przepisu": "The page has no recipe picture", "Nie udało się pobrać zdjęcia": "Could not download the picture", "Zdjęcie ze strony": "Picture from the page", "grafika AI": "AI picture", "Zmień": "Change", "Brak obrazka": "No picture", "Dodaj zdjęcie": "Add photo", "Grafiki AI dla przepisów bez obrazka": "AI pictures for recipes without one", "Wszystkie przepisy mają obrazek": "All recipes have a picture", "Grafiki AI": "AI pictures", "Claude narysuje prostą grafikę dla przepisów bez obrazka: ": "Claude will draw a simple picture for recipes without one: ", "Każda grafika to jedno zapytanie do API (płatne z Twojego klucza). Możesz przerwać w każdej chwili.": "Each picture is one API request (paid from your key). You can stop at any time.", "Rysuj": "Draw", "Przerwij": "Stop", "Rysuję": "Drawing", "Gotowe: ": "Done: "});
 Object.values(DEFAULT_SUBS).flat().forEach(x => CAT_SET.add(x));
 render();
 initStore();

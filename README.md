@@ -61,6 +61,8 @@ In the Claude version: **⋯ → Backup (JSON)** (Polish: *Kopia zapasowa (JSON)
 - Original language kept, AI translations to Polish, English and Danish
 - Scale servings, grams/ml conversion (approximate values marked ≈), °F → °C
 - Categories, tags, search (including ingredients), Favourites and To try
+- A picture for every recipe: the photo from the recipe page (downloaded automatically when adding from a link),
+  your own photo, or a simple illustration drawn by Claude (marked as an AI picture)
 - Personal notes, and clearly marked AI notes that never mix with the original recipe
 - Cook mode: ingredients and steps on one screen, the current step's ingredients highlighted with amounts, screen kept on
 - Duplicate and similar recipe detection
