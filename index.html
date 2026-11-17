@@ -1,0 +1,1813 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cooking Assistant</title>
+<meta name="theme-color" content="#B5532E">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#FBF7F0; --card:#FFFFFF; --ink:#2B2622; --muted:#7A6F66; --line:#E8DFD3;
+  --accent:#B5532E; --accent-soft:#F6E3D9; --ok:#3E7C4F;
+  --ai:#6B4FA0; --ai-bg:#F3EEFA; --ai-line:#B9A5DC;
+  --radius:14px; color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:"Source Sans 3",system-ui,sans-serif;font-size:16px;line-height:1.45}
+button,input,select,textarea{font:inherit;color:inherit}
+h1,h2,h3{font-family:Fraunces,Georgia,serif;font-weight:700;margin:0;line-height:1.15}
+a{color:var(--accent)}
+.wrap{max-width:860px;margin:0 auto;padding:0 14px 120px}
+header.top{position:sticky;top:0;padding-top:env(safe-area-inset-top);z-index:20;background:rgba(251,247,240,.96);backdrop-filter:blur(6px);border-bottom:1px solid var(--line)}
+header.top .wrap{padding-bottom:10px;padding-top:10px}
+.row{display:flex;gap:8px;align-items:center}
+.wrapflex{flex-wrap:wrap}
+.grow{flex:1;min-width:0}
+.brand{font-family:Fraunces,serif;font-size:21px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.btn{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:8px 14px;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:#cbbba8}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.btn.ai{background:var(--ai-bg);border-color:var(--ai-line);color:var(--ai)}
+.btn.danger{color:#A33}
+.btn.small{padding:5px 10px;font-size:14px}
+.btn:disabled{opacity:.5;cursor:default}
+.iconbtn{border:none;background:none;cursor:pointer;font-size:20px;padding:6px 8px;border-radius:10px}
+.iconbtn:hover{background:var(--accent-soft)}
+input[type=text],input[type=password],input[type=search],input[type=url],input[type=number],select,textarea{width:100%;border:1px solid var(--line);background:#fff;border-radius:10px;padding:9px 11px}
+textarea{min-height:120px;resize:vertical}
+label.f{display:block;font-size:13px;font-weight:600;color:var(--muted);margin:12px 0 4px}
+.chips{display:flex;gap:6px;overflow-x:auto;padding:8px 0 2px;scrollbar-width:none}
+.chip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:4px 12px;font-size:14px;cursor:pointer;white-space:nowrap}
+.chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.banner{background:#FFF4D6;border:1px solid #EBD38E;border-radius:10px;padding:8px 12px;font-size:14px;margin:10px 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-top:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px;cursor:pointer;transition:transform .08s}
+.card:hover{transform:translateY(-1px);border-color:#d8c9b6}
+.card h3{font-size:18px;margin-bottom:6px}
+.meta{font-size:13px;color:var(--muted)}
+.tag{display:inline-block;background:var(--accent-soft);color:#8a3d20;border-radius:6px;padding:1px 7px;font-size:12px;margin:2px 3px 0 0}
+.aitag{display:inline-block;background:var(--ai-bg);color:var(--ai);border:1px dashed var(--ai-line);border-radius:6px;padding:0 6px;font-size:12px}
+.stattag{display:inline-block;background:#E8F1EA;color:#2F6B41;border-radius:6px;padding:1px 7px;font-size:12px;margin:4px 0 2px}
+.statbtn.on{background:#FFF3D6;border-color:#E3C478;font-weight:600}
+.asstbtn{width:100%;margin-top:8px;text-align:left;background:var(--ai-bg);border:1px solid var(--ai-line);color:var(--ai);border-radius:12px;padding:10px 14px;cursor:pointer;font-weight:600}
+.msgs{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.bub{max-width:90%;padding:10px 13px;border-radius:16px}
+.bub.u{align-self:flex-end;background:var(--ink);color:#fff;border-bottom-right-radius:4px;white-space:pre-wrap}
+.bub.a{align-self:flex-start;background:#fff;border:1px solid var(--line);border-bottom-left-radius:4px}
+.bub.err{border-color:#e6b0b0;background:#fff6f6}
+.mini{border:1px solid var(--line);border-radius:12px;padding:9px 11px;margin-top:8px;cursor:pointer;background:var(--bg)}
+.mini:hover{border-color:#cbbba8}
+.newr{border:1.5px dashed var(--ai-line);background:var(--ai-bg);border-radius:12px;padding:10px 12px;margin-top:8px}
+.memchip{display:inline-flex;gap:4px;align-items:center;background:#EEF4EA;color:#2F6B41;border-radius:999px;padding:3px 10px;font-size:13px;margin:8px 6px 0 0}
+.memchip.off{background:#f1eeea;color:var(--muted);text-decoration:line-through}
+.composer{position:fixed;left:0;right:0;bottom:0;background:rgba(255,255,255,.97);border-top:1px solid var(--line);padding:10px 12px calc(10px + env(safe-area-inset-bottom));z-index:15}
+.composer .inner{max-width:860px;margin:0 auto;display:flex;gap:8px;align-items:flex-end}
+.composer textarea{min-height:44px;max-height:140px;resize:none}
+.empty{text-align:center;color:var(--muted);padding:50px 10px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:#fff}
+.seg button{border:none;background:none;padding:6px 12px;cursor:pointer;font-size:14px}
+.seg button.on{background:var(--ink);color:#fff}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-top:12px}
+.rtitle{font-size:30px;margin:14px 0 6px}
+.ing{list-style:none;padding:0;margin:0}
+.ing li{padding:7px 0;border-bottom:1px dashed var(--line);display:flex;gap:10px}
+.ing li.hdr{font-weight:700;border-bottom:none;padding-top:12px;font-family:Fraunces,serif}
+.ing .q{min-width:92px;font-weight:600}
+.ing .orig{color:var(--muted);font-size:13px}
+ol.steps{padding-left:22px;margin:0}
+ol.steps li{margin:0 0 12px;padding-left:4px}
+.aibox{background:var(--ai-bg);border:1.5px dashed var(--ai-line);border-radius:var(--radius);padding:14px;margin-top:12px}
+.aibox .lbl{color:var(--ai);font-weight:700;font-size:14px;display:flex;align-items:center;gap:6px}
+.aibox ul{margin:8px 0 0;padding-left:18px}
+.aibox li{margin-bottom:6px}
+.notes{white-space:pre-wrap}
+.trbanner{background:var(--ai-bg);border:1px dashed var(--ai-line);color:var(--ai);border-radius:10px;padding:8px 12px;font-size:14px;margin-top:10px}
+.actionbar{position:fixed;left:0;right:0;bottom:0;z-index:15;background:rgba(255,255,255,.97);border-top:1px solid var(--line);padding:10px 12px calc(10px + env(safe-area-inset-bottom))}
+.actionbar .inner{max-width:860px;margin:0 auto;display:flex;gap:8px;overflow-x:auto}
+.ctrl{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:10px}
+.stepper{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:999px;background:#fff}
+.stepper button{border:none;background:none;width:34px;height:32px;font-size:18px;cursor:pointer}
+.stepper span{min-width:58px;text-align:center;font-weight:600;font-size:14px}
+/* modal */
+.modal-bg{position:fixed;inset:0;background:rgba(43,38,34,.45);z-index:50;display:flex;align-items:flex-end;justify-content:center}
+@media(min-width:700px){.modal-bg{align-items:center}}
+.modal{background:#fff;border-radius:18px 18px 0 0;width:100%;max-width:640px;max-height:90vh;overflow:auto;padding:18px}
+@media(min-width:700px){.modal{border-radius:18px}}
+.modal h2{font-size:22px;margin-bottom:8px}
+.modal .acts{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:16px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:90px;background:var(--ink);color:#fff;padding:9px 16px;border-radius:999px;z-index:60;font-size:14px;max-width:90vw}
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:sp .8s linear infinite;vertical-align:-3px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.tabs{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap}
+.drop{border:2px dashed var(--line);border-radius:var(--radius);padding:24px;text-align:center;background:#fff;cursor:pointer}
+.drop.over{border-color:var(--accent);background:var(--accent-soft)}
+.review{display:flex;gap:10px;align-items:flex-start}
+.warn{color:#9a5b00;font-size:13px}
+.dupe{color:#A33;font-size:13px}
+.hint-small{font-size:13px;color:var(--muted)}
+/* cook mode */
+.cook{position:fixed;inset:0;background:#fff;z-index:40;display:flex;flex-direction:column}
+.cook .head{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.cook .body{flex:1;overflow:auto;padding:16px;font-size:21px;line-height:1.5}
+.cook .stepcard{font-size:26px;line-height:1.45;padding:10px 0}
+.cook .foot{display:flex;gap:10px;padding:12px 14px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--line)}
+.cook .foot .btn{flex:1;padding:14px;font-size:18px}
+.cook label.chk{display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-bottom:1px dashed var(--line)}
+.cook label.chk input{width:24px;height:24px;margin-top:4px}
+.cook .done{text-decoration:line-through;color:var(--muted)}
+.cook .alls li{cursor:pointer;margin-bottom:10px;font-size:18px}
+/* A5 print pages (rendered off-screen, captured to PDF) */
+#a5stage{position:absolute;left:0;top:0;z-index:-1}
+.a5{width:559px;height:794px;background:#fff;position:relative;color:#1f1b18;font-family:"Source Sans 3",sans-serif;overflow:hidden}
+.a5 .body{position:absolute;overflow:hidden}
+.a5 .foot{position:absolute;bottom:22px;font-size:9px;color:#8a8079;display:flex;justify-content:space-between}
+.a5 h1{font-family:Fraunces,serif;font-size:24px;line-height:1.15;margin:0 0 6px}
+.a5 .m{font-size:10.5px;color:#6d635b;margin-bottom:10px}
+.a5 h4{font-family:Fraunces,serif;font-size:13.5px;margin:12px 0 4px;color:#9a4424;text-transform:uppercase;letter-spacing:.06em}
+.a5 .i{display:flex;gap:8px;font-size:12px;padding:2.5px 0;border-bottom:.5px dotted #d9cfc3}
+.a5 .i .q{min-width:74px;font-weight:700}
+.a5 .ih{font-weight:700;font-size:12px;padding-top:6px}
+.a5 .s{display:flex;gap:8px;font-size:12px;margin:0 0 6px}
+.a5 .s .n{font-weight:700;color:#9a4424;min-width:16px}
+.a5 .nt{font-size:11.5px;white-space:pre-wrap}
+.a5 .aib{border:1.2px dashed #B9A5DC;background:#F6F2FB;border-radius:6px;padding:6px 8px;margin-top:10px;font-size:11px}
+.a5 .aib b{color:#6B4FA0}
+.a5 .trn{font-size:9.5px;color:#6B4FA0;margin-bottom:6px}
+.a5.compact .i,.a5.compact .s{font-size:10.8px}
+.a5.compact h1{font-size:21px}
+.pdfprev{display:flex;gap:10px;overflow-x:auto;padding:6px 0}
+.pdfprev img{height:300px;border:1px solid var(--line);box-shadow:0 2px 6px rgba(0,0,0,.08);background:#fff}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="a5stage"></div>
+<script>
+// ==CORE START==
+const LANGS = { pl: 'Polski', en: 'English', da: 'Dansk' };
+const LANG_SHORT = { pl: 'PL', en: 'EN', da: 'DA' };
+const DEFAULT_CATS = ['Śniadania', 'Zupy', 'Dania główne', 'Sałatki', 'Przekąski', 'Desery', 'Ciasta i wypieki', 'Pieczywo', 'Sosy i dodatki', 'Napoje', 'Przetwory', 'Inne'];
+
+const L = {
+  pl: { ing: 'Składniki', steps: 'Sposób przygotowania', notes: 'Moje notatki', ai: 'Dopisek AI', aiSub: 'nie pochodzi z oryginalnego przepisu', servings: 'porcje', prep: 'przygotowanie', cook: 'gotowanie', source: 'Źródło', tr: 'Tłumaczenie AI z języka', aiLegend: 'Ramka przerywana = dopisek AI', aiRecipe: 'Przepis wygenerowany przez AI' },
+  en: { ing: 'Ingredients', steps: 'Method', notes: 'My notes', ai: 'AI note', aiSub: 'not from the original recipe', servings: 'servings', prep: 'prep', cook: 'cook', source: 'Source', tr: 'AI translation from', aiLegend: 'Dashed box = AI note', aiRecipe: 'AI-generated recipe' },
+  da: { ing: 'Ingredienser', steps: 'Fremgangsmåde', notes: 'Mine noter', ai: 'AI-tilføjelse', aiSub: 'ikke fra den originale opskrift', servings: 'portioner', prep: 'forberedelse', cook: 'tilberedning', source: 'Kilde', tr: 'AI-oversættelse fra', aiLegend: 'Stiplet ramme = AI-tilføjelse', aiRecipe: 'AI-genereret opskrift' },
+};
+
+// canonical units: t = m (mass, f = grams), v (volume, f = ml), x (count/other)
+const UNITS = {
+  g: { t: 'm', f: 1 }, kg: { t: 'm', f: 1000 }, dag: { t: 'm', f: 10 }, mg: { t: 'm', f: 0.001 },
+  oz: { t: 'm', f: 28.35 }, lb: { t: 'm', f: 453.6 },
+  ml: { t: 'v', f: 1 }, cl: { t: 'v', f: 10 }, dl: { t: 'v', f: 100 }, l: { t: 'v', f: 1000 },
+  tsp: { t: 'v', f: 5 }, tbsp: { t: 'v', f: 15 }, cup: { t: 'v', f: 240 }, szkl: { t: 'v', f: 250 }, floz: { t: 'v', f: 29.57 },
+  pinch: { t: 'x' }, szt: { t: 'x' }, clove: { t: 'x' }, can: { t: 'x' }, pack: { t: 'x' }, bunch: { t: 'x' }, handful: { t: 'x' }, slice: { t: 'x' },
+};
+const UNIT_ALIASES = (() => {
+  const m = {};
+  const add = (key, list) => list.forEach(a => m[a] = key);
+  add('g', ['g', 'gr', 'gram', 'gramy', 'gramów', 'gramow', 'grams', 'gramm']);
+  add('kg', ['kg', 'kilo', 'kilogram', 'kilogramy', 'kilogramów']);
+  add('dag', ['dag', 'dkg', 'deko']);
+  add('mg', ['mg']);
+  add('oz', ['oz', 'ounce', 'ounces']);
+  add('lb', ['lb', 'lbs', 'pound', 'pounds']);
+  add('ml', ['ml', 'mililitr', 'mililitrów', 'milliliter', 'milliliters', 'millilitres']);
+  add('cl', ['cl']);
+  add('dl', ['dl', 'decyliter']);
+  add('l', ['l', 'litr', 'litry', 'litrów', 'liter', 'liters', 'litre', 'litres']);
+  add('tsp', ['tsp', 'teaspoon', 'teaspoons', 'łyżeczka', 'łyżeczki', 'łyżeczek', 'łyżeczkę', 'łyż', 'tsk', 'teske', 'teskefuld', 'teskefulde']);
+  add('tbsp', ['tbsp', 'tbs', 'tablespoon', 'tablespoons', 'łyżka', 'łyżki', 'łyżek', 'łyżkę', 'spsk', 'spiseske', 'spiseskefuld', 'spiseskefulde']);
+  add('cup', ['cup', 'cups', 'kop', 'kopper']);
+  add('szkl', ['szklanka', 'szklanki', 'szklanek', 'szklankę', 'szkl']);
+  add('floz', ['floz']);
+  add('pinch', ['pinch', 'szczypta', 'szczypty', 'szczyptę', 'knivspids', 'knsp']);
+  add('szt', ['szt', 'sztuka', 'sztuki', 'sztuk', 'pc', 'pcs', 'piece', 'pieces', 'stk', 'stykke', 'stykker']);
+  add('clove', ['ząbek', 'ząbki', 'ząbków', 'clove', 'cloves', 'fed']);
+  add('can', ['puszka', 'puszki', 'puszek', 'can', 'cans', 'dåse', 'dåser', 'tin', 'tins']);
+  add('pack', ['opakowanie', 'opakowania', 'opak', 'package', 'packages', 'pk', 'pakke', 'pakker', 'paczka', 'paczki']);
+  add('bunch', ['pęczek', 'pęczki', 'bunch', 'bundt', 'bdt']);
+  add('handful', ['garść', 'garście', 'handful', 'håndfuld']);
+  add('slice', ['plaster', 'plastry', 'plasterek', 'plasterki', 'slice', 'slices', 'skive', 'skiver']);
+  return m;
+})();
+const UNIT_LABEL = {
+  pl: { tsp: 'łyżeczka', tbsp: 'łyżka', cup: 'cup', szkl: 'szklanka', pinch: 'szczypta', szt: 'szt.', clove: 'ząbek', can: 'puszka', pack: 'opak.', bunch: 'pęczek', handful: 'garść', slice: 'plaster', floz: 'fl oz' },
+  en: { tsp: 'tsp', tbsp: 'tbsp', cup: 'cup', szkl: 'glass (250 ml)', pinch: 'pinch', szt: 'pc', clove: 'clove', can: 'can', pack: 'pack', bunch: 'bunch', handful: 'handful', slice: 'slice', floz: 'fl oz' },
+  da: { tsp: 'tsk', tbsp: 'spsk', cup: 'cup', szkl: 'glas (250 ml)', pinch: 'knivspids', szt: 'stk', clove: 'fed', can: 'dåse', pack: 'pakke', bunch: 'bundt', handful: 'håndfuld', slice: 'skive', floz: 'fl oz' },
+};
+
+// Approximate densities in g per ml. Order matters: specific before general.
+// liquid:true -> keep ml in metric mode. none:true -> known exception, no conversion.
+const DENSITY = [
+  { k: ['ziemniaczan', 'kartoffelmel', 'potato starch', 'potato flour'], none: true },
+  { k: ['cukier puder', 'puder', 'powdered sugar', 'icing sugar', 'confectioner', 'flormelis'], d: 0.50, n: 'cukier puder' },
+  { k: ['brązow', 'brown sugar', 'farin', 'muscovado'], d: 0.90, n: 'cukier brązowy' },
+  { k: ['mąka migdał', 'mąki migdał', 'almond flour', 'ground almond', 'mandelmel'], d: 0.40, n: 'mąka migdałowa' },
+  { k: ['żytni', 'rye flour', 'rugmel'], d: 0.43, n: 'mąka żytnia' },
+  { k: ['pełnoziarnist', 'razow', 'whole wheat flour', 'wholemeal', 'grahamsmel', 'fuldkornsmel'], d: 0.50, n: 'mąka pełnoziarnista' },
+  { k: ['skrobia kukurydz', 'cornstarch', 'corn starch', 'cornflour', 'majsstivelse', 'maizena'], d: 0.53, n: 'skrobia kukurydziana' },
+  { k: ['kakao', 'cocoa'], d: 0.38, n: 'kakao' },
+  { k: ['proszek do pieczenia', 'proszku do pieczenia', 'baking powder', 'bagepulver'], d: 0.90, n: 'proszek do pieczenia' },
+  { k: ['soda oczyszcz', 'sody', 'baking soda', 'bicarbonate', 'natron'], d: 1.10, n: 'soda' },
+  { k: ['kasza manna', 'kaszy manny', 'semolina', 'semulje', 'mannagryn'], d: 0.70, n: 'kasza manna' },
+  { k: ['mąka', 'mąki', 'flour', 'hvedemel', ' mel '], d: 0.52, n: 'mąka pszenna' },
+  { k: ['cukier', 'cukru', 'sugar', 'sukker'], d: 0.83, n: 'cukier' },
+  { k: ['masło', 'masła', 'butter', 'smør'], d: 0.95, n: 'masło' },
+  { k: ['płatki owsian', 'płatków owsian', 'oats', 'oatmeal', 'havregryn'], d: 0.38, n: 'płatki owsiane' },
+  { k: ['ryż', 'ryżu', 'rice', 'ris'], d: 0.80, n: 'ryż (suchy)' },
+  { k: ['miód', 'miodu', 'honey', 'honning'], d: 1.42, n: 'miód' },
+  { k: ['syrop klonow', 'maple syrup', 'ahornsirup'], d: 1.32, n: 'syrop klonowy' },
+  { k: ['masło orzech', 'peanut butter', 'peanutbutter', 'jordnøddesmør'], d: 1.08, n: 'masło orzechowe' },
+  { k: ['rodzynk', 'raisin', 'rosin'], d: 0.63, n: 'rodzynki' },
+  { k: ['wiórki kokos', 'wiórków kokos', 'desiccated coconut', 'shredded coconut', 'kokosmel'], d: 0.35, n: 'wiórki kokosowe' },
+  { k: ['bułka tarta', 'bułki tartej', 'breadcrumb', 'rasp'], d: 0.45, n: 'bułka tarta' },
+  { k: ['ser tarty', 'tartego sera', 'grated cheese', 'shredded cheese', 'revet ost'], d: 0.42, n: 'ser tarty' },
+  { k: ['jogurt', 'yogurt', 'yoghurt', 'skyr'], d: 1.03, n: 'jogurt' },
+  { k: ['sól', 'soli', 'salt'], d: 1.20, n: 'sól' },
+  { k: ['mleko', 'mleka', 'milk', 'mælk'], d: 1.03, liquid: true },
+  { k: ['śmietan', 'cream', 'fløde', 'creme fraiche', 'crème fraîche'], d: 1.0, liquid: true },
+  { k: ['woda', 'wody', 'water', 'vand'], d: 1.0, liquid: true },
+  { k: ['olej', 'oleju', 'oliwa', 'oliwy', 'oil', 'olie'], d: 0.92, liquid: true },
+  { k: ['ocet', 'octu', 'vinegar', 'eddike'], d: 1.0, liquid: true },
+  { k: [' sok ', 'soku', 'juice', 'saft'], d: 1.0, liquid: true },
+  { k: ['bulion', 'rosół', 'stock', 'broth', 'bouillon'], d: 1.0, liquid: true },
+];
+
+function normalize(s) {
+  return (s || '').toString().toLowerCase()
+    .replace(/ł/g, 'l').replace(/æ/g, 'ae').replace(/ø/g, 'o').replace(/å/g, 'a')
+    .normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+function findDensity(item) {
+  const s = ' ' + (item || '').toLowerCase() + ' ';
+  for (const e of DENSITY) if (e.k.some(k => s.includes(k))) return e.none ? null : e;
+  return null;
+}
+
+const FRAC = { '½': 0.5, '¼': 0.25, '¾': 0.75, '⅓': 1 / 3, '⅔': 2 / 3, '⅛': 0.125, '⅜': 0.375, '⅝': 0.625, '⅞': 0.875 };
+function readNum(s) {
+  let m;
+  if ((m = s.match(/^(\d+)\s+(\d+)\s*\/\s*(\d+)/))) return [+m[1] + m[2] / m[3], m[0].length];
+  if ((m = s.match(/^(\d+)\s*\/\s*(\d+)/))) return [m[1] / m[2], m[0].length];
+  if ((m = s.match(/^(\d+(?:[.,]\d+)?)\s*([½¼¾⅓⅔⅛⅜⅝⅞])?/))) return [parseFloat(m[1].replace(',', '.')) + (m[2] ? FRAC[m[2]] : 0), m[0].length];
+  if ((m = s.match(/^([½¼¾⅓⅔⅛⅜⅝⅞])/))) return [FRAC[m[1]], m[0].length];
+  return null;
+}
+function unitKey(word) {
+  if (!word) return '';
+  const w = word.toLowerCase().replace(/\.$/, '');
+  return UNIT_ALIASES[w] || '';
+}
+// "200 g mąki" -> {qty:200, qtyMax:null, unit:'g', unitRaw:'g', item:'mąki'}
+function parseIngredientLine(line) {
+  let s = line.trim().replace(/^[-•*·▢☐]\s*/, '');
+  if (!s) return null;
+  if (/^#+\s*/.test(s) || (/:$/.test(s) && s.length < 60 && !/\d/.test(s))) {
+    return { header: true, item: s.replace(/^#+\s*/, '').replace(/:$/, '').trim() };
+  }
+  const out = { qty: null, qtyMax: null, unit: '', unitRaw: '', item: '' };
+  const n = readNum(s);
+  if (n) {
+    out.qty = round3(n[0]);
+    s = s.slice(n[1]).trim();
+    const r = s.match(/^(?:-|–|—|do|to|til)\s*/);
+    if (r) {
+      const n2 = readNum(s.slice(r[0].length));
+      if (n2) { out.qtyMax = round3(n2[0]); s = s.slice(r[0].length + n2[1]).trim(); }
+    }
+  }
+  // fl oz
+  let m = s.match(/^fl\.?\s*oz\.?\b\s*/i);
+  if (m) { out.unit = 'floz'; out.unitRaw = 'fl oz'; s = s.slice(m[0].length); }
+  else {
+    m = s.match(/^([A-Za-zÀ-žąćęłńóśźżĄĆĘŁŃÓŚŹŻæøåÆØÅ]+\.?)(?=\s|$|[,(])/);
+    if (m) {
+      const k = unitKey(m[1]);
+      if (k && (out.qty != null || k === 'pinch')) { out.unit = k; out.unitRaw = m[1]; s = s.slice(m[0].length).trim(); }
+    }
+  }
+  s = s.replace(/^(of|af)\s+/i, '');
+  out.item = s.trim();
+  return out;
+}
+function round3(x) { return Math.round(x * 1000) / 1000; }
+
+function fmtFrac(x) {
+  const whole = Math.floor(x + 1e-9), rest = x - whole;
+  const opts = [[0, ''], [0.25, '¼'], [1 / 3, '⅓'], [0.5, '½'], [2 / 3, '⅔'], [0.75, '¾'], [1, '']];
+  let best = opts[0], d = 9;
+  for (const o of opts) { const dd = Math.abs(rest - o[0]); if (dd < d) { d = dd; best = o; } }
+  if (d > 0.07) return null;
+  const w = best[0] === 1 ? whole + 1 : whole;
+  if (!best[1]) return String(w);
+  return (w ? w + ' ' : '') + best[1];
+}
+function fmtNum(x, lang, unit) {
+  if (x == null || isNaN(x)) return '';
+  if (['tsp', 'tbsp', 'cup', 'szkl', 'pinch', 'szt', 'clove', 'can', 'pack', 'bunch', 'handful', 'slice', ''].includes(unit || '')) {
+    const f = fmtFrac(x);
+    if (f) return f;
+  }
+  let v;
+  if (x >= 100) v = Math.round(x);
+  else if (x >= 10) v = Math.round(x * 10) / 10;
+  else v = Math.round(x * 100) / 100;
+  let s = String(v);
+  if (lang !== 'en') s = s.replace('.', ',');
+  return s;
+}
+function roundMetric(x) {
+  if (x >= 1000) return Math.round(x / 10) * 10;
+  if (x >= 100) return Math.round(x / 5) * 5;
+  if (x >= 10) return Math.round(x);
+  return Math.round(x * 2) / 2;
+}
+function fmtMetric(x, base, lang) { // base: 'g' or 'ml'
+  const r = roundMetric(x);
+  if (r >= 1000) {
+    const big = base === 'g' ? 'kg' : 'l';
+    let s = String(Math.round(r / 100) / 10);
+    if (lang !== 'en') s = s.replace('.', ',');
+    return s + ' ' + big;
+  }
+  let s = String(r);
+  if (lang !== 'en') s = s.replace('.', ',');
+  return s + ' ' + base;
+}
+function unitText(ing, lang, isOrigLang) {
+  if (!ing.unit) return ing.unitRaw || '';
+  if (isOrigLang && ing.unitRaw) return ing.unitRaw;
+  return (UNIT_LABEL[lang] && UNIT_LABEL[lang][ing.unit]) || ing.unitRaw || ing.unit;
+}
+// returns {q: "200 g", approx:bool, orig:"1 cup"}
+function displayQty(ing, factor, mode, lang, isOrigLang) {
+  if (ing.header) return { q: '' };
+  const has = ing.qty != null;
+  const q1 = has ? roundScaled(ing.qty * factor, ing.unit, factor) : null;
+  const q2 = ing.qtyMax != null ? roundScaled(ing.qtyMax * factor, ing.unit, factor) : null;
+  const ut = unitText(ing, lang, isOrigLang);
+  const origStr = has ? (fmtNum(q1, lang, ing.unit) + (q2 != null ? '–' + fmtNum(q2, lang, ing.unit) : '') + (ut ? ' ' + ut : '')) : (ut || '');
+  if (mode !== 'metric' || !has || !ing.unit || !UNITS[ing.unit]) return { q: origStr };
+  const U = UNITS[ing.unit];
+  const conv = (base, mul) => fmtMetric(q1 * mul, base, lang).replace(/ (g|kg|ml|l)$/, q2 != null ? '' : ' $1') + (q2 != null ? '–' + fmtMetric(q2 * mul, base, lang) : '');
+  if (U.t === 'm') {
+    if (['g', 'kg'].includes(ing.unit)) return { q: origStr };
+    return { q: conv('g', U.f), approx: ing.unit !== 'dag' && ing.unit !== 'mg', orig: origStr };
+  }
+  if (U.t === 'v') {
+    if (['tsp', 'tbsp'].includes(ing.unit)) return { q: origStr };
+    const d = findDensity(ing.item);
+    if (d && !d.liquid) return { q: conv('g', U.f * d.d), approx: true, orig: origStr, note: d.n };
+    if (['ml', 'l', 'dl', 'cl'].includes(ing.unit)) return { q: origStr };
+    return { q: conv('ml', U.f), approx: false, orig: origStr };
+  }
+  return { q: origStr };
+}
+function roundScaled(x, unit, factor) {
+  if (factor === 1) return x;
+  const u = unit || '';
+  if (['g', 'ml', 'mg'].includes(u)) return roundMetric(x);
+  if (['kg', 'l', 'dl', 'cl', 'oz', 'lb', 'floz', 'dag'].includes(u)) return x >= 10 ? Math.round(x) : Math.round(x * 10) / 10;
+  if (['tsp', 'tbsp', 'cup', 'szkl', 'pinch'].includes(u)) return Math.max(0.25, Math.round(x * 4) / 4);
+  return Math.max(0.5, Math.round(x * 2) / 2);
+}
+function convertTemps(text, lang) {
+  return (text || '').replace(/(\d{3})\s*°?\s*(?:F\b|Fahrenheit\b)/g, (all, f) => {
+    const c = Math.round((f - 32) * 5 / 9 / 5) * 5;
+    return `${c}°C (${f}°F)`;
+  });
+}
+function ingredientToLine(ing) {
+  if (ing.header) return '# ' + ing.item;
+  const parts = [];
+  if (ing.qty != null) parts.push(fmtNum(ing.qty, 'pl', ing.unit) + (ing.qtyMax != null ? '-' + fmtNum(ing.qtyMax, 'pl', ing.unit) : ''));
+  if (ing.unitRaw || ing.unit) parts.push(ing.unitRaw || ing.unit);
+  parts.push(ing.item);
+  return parts.join(' ');
+}
+
+// --- similarity / duplicates ---
+function trigrams(s) {
+  const t = '  ' + normalize(s).replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim() + ' ';
+  const set = new Set();
+  for (let i = 0; i < t.length - 2; i++) set.add(t.slice(i, i + 3));
+  return set;
+}
+function jaccard(a, b) {
+  if (!a.size && !b.size) return 0;
+  let inter = 0; for (const x of a) if (b.has(x)) inter++;
+  return inter / (a.size + b.size - inter);
+}
+const STOP = new Set(['i', 'oraz', 'lub', 'do', 'na', 'z', 'ze', 'of', 'and', 'or', 'the', 'a', 'og', 'eller', 'med', 'til', 'fresh', 'swieze', 'swiezy', 'drobno', 'posiekane', 'chopped']);
+function ingTokens(r) {
+  const set = new Set();
+  (r.ingredients || []).filter(i => !i.header).forEach(i => {
+    const w = normalize(i.item).replace(/[^a-z ]/g, ' ').split(/\s+/).filter(x => x.length > 2 && !STOP.has(x));
+    if (w[0]) set.add(w[0].slice(0, 5));
+  });
+  return set;
+}
+function titlesOf(r) {
+  const t = [r.title];
+  Object.values(r.tr || {}).forEach(x => x && x.title && t.push(x.title));
+  return t.filter(Boolean);
+}
+function similarity(a, b) {
+  let ts = 0;
+  for (const x of titlesOf(a)) for (const y of titlesOf(b)) ts = Math.max(ts, jaccard(trigrams(x), trigrams(y)));
+  const ia = ingTokens(a), ib = ingTokens(b);
+  if (ia.size >= 2 && ib.size >= 2) {
+    const is = jaccard(ia, ib);
+    return Math.max(0.55 * ts + 0.45 * is, ts >= 0.9 ? ts : 0, is >= 0.85 && ts > 0.25 ? 0.6 + 0.4 * is * ts : 0);
+  }
+  return ts;
+}
+function findSimilar(r, all, threshold = 0.55) {
+  return all.filter(x => x.id !== r.id).map(x => ({ r: x, s: similarity(r, x) })).filter(x => x.s >= threshold).sort((a, b) => b.s - a.s);
+}
+function sig(r) {
+  const s = JSON.stringify([r.title, (r.ingredients || []).map(i => i.item), r.steps || [], ((r.ai && r.ai.hints) || []).map(h => h.text)]);
+  let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+  return String(h);
+}
+// Extract schema.org Recipe JSON-LD from HTML
+function recipesFromJsonLd(html) {
+  const out = [];
+  const re = /<script[^>]*application\/ld\+json[^>]*>([\s\S]*?)<\/script>/gi;
+  let m;
+  const visit = (o) => {
+    if (!o || typeof o !== 'object') return;
+    if (Array.isArray(o)) return o.forEach(visit);
+    const t = o['@type'];
+    if (t === 'Recipe' || (Array.isArray(t) && t.includes('Recipe'))) out.push(o);
+    if (o['@graph']) visit(o['@graph']);
+  };
+  while ((m = re.exec(html))) { try { visit(JSON.parse(m[1].trim())); } catch (e) { } }
+  return out.map(o => {
+    const steps = [];
+    const walk = (x) => {
+      if (!x) return;
+      if (typeof x === 'string') { x.split(/\n+/).forEach(s => s.trim() && steps.push(stripTags(s.trim()))); return; }
+      if (Array.isArray(x)) return x.forEach(walk);
+      if (x['@type'] === 'HowToSection') { walk(x.itemListElement); return; }
+      if (x.text) steps.push(stripTags(x.text.trim()));
+    };
+    walk(o.recipeInstructions);
+    const ys = Array.isArray(o.recipeYield) ? o.recipeYield[0] : o.recipeYield;
+    const yn = ys != null ? parseInt(String(ys), 10) : NaN;
+    return {
+      title: stripTags(o.name || ''),
+      servings: isNaN(yn) ? null : yn,
+      prepTime: isoDur(o.prepTime), cookTime: isoDur(o.cookTime),
+      ingredients: (o.recipeIngredient || []).map(x => parseIngredientLine(stripTags(String(x)))).filter(Boolean),
+      steps,
+      category: '',
+      tags: (typeof o.keywords === 'string' ? o.keywords.split(',') : []).map(s => s.trim()).filter(Boolean).slice(0, 6),
+    };
+  });
+}
+function stripTags(s) { return String(s).replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/\s+/g, ' ').trim(); }
+function isoDur(d) {
+  if (!d || typeof d !== 'string') return '';
+  const m = d.match(/P(?:\d+D)?T?(?:(\d+)H)?(?:(\d+)M)?/);
+  if (!m) return '';
+  const h = +(m[1] || 0), mi = +(m[2] || 0);
+  if (!h && !mi) return '';
+  return (h ? h + ' h ' : '') + (mi ? mi + ' min' : '').trim();
+}
+// ==CORE END==
+// one-time migration of storage keys from the old Polish names
+try { ['local','deleted','asst','chat','apikey','model','settings'].forEach(k => { const o = 'przepisy.' + k, n = 'cookingAssistant.' + k; if (localStorage.getItem(n) == null && localStorage.getItem(o) != null) { localStorage.setItem(n, localStorage.getItem(o)); localStorage.removeItem(o); } }); } catch (e) { }
+
+
+// ================= APP =================
+const S = {
+  recipes: [], loaded: false, db: null, local: false, canWrite: true,
+  view: 'list', id: null, q: '', cat: '', sort: 'new',
+  viewLang: {}, servings: {}, tempTr: {}, pending: [], pendingIdx: -1, editing: null,
+  settings: { units: 'orig', binder: true, compact: false, prefLang: '', ui: 'pl' },
+  sample: null, sampleImages: false, downloads: null, note: '',
+};
+try { Object.assign(S.settings, JSON.parse(localStorage.getItem('cookingAssistant.settings') || '{}')); } catch (e) { }
+
+const UI_EN = {"Ładowanie trwa dłużej niż zwykle…": "Loading is taking longer than usual…", "Nie udało się połączyć z bazą (": "Could not connect to the database (", "Nie udało się zapisać w przeglądarce": "Could not save in the browser", "Masz dostęp tylko do odczytu": "You have read-only access", "Baza jest pełna: ": "Database is full: ", "Błąd zapisu: ": "Save error: ", "AI niedostępne w tym widoku": "AI is not available in this view", "Brak zgody na AI": "AI permission not granted", "Za dużo zapytań do AI, spróbuj za chwilę": "Too many AI requests, try again shortly", "Błąd AI": "AI error", "Bez tytułu": "Untitled", "Nie udało się wczytać biblioteki": "Could not load a library", "Format HEIC nie jest obsługiwany. Zapisz zdjęcie jako JPG.": "HEIC is not supported. Save the photo as JPG.", " Wczytuję przepisy…": " Loading recipes…", "Tryb lokalny: przepisy zapisują się tylko w tej przeglądarce. Otwórz aplikację przez link claude.ai, żeby mieć je na każdym urządzeniu.": "Local mode: recipes are saved only in this browser. Open the app via its claude.ai link to have them on every device.", "Masz dostęp tylko do przeglądania.": "You have view-only access.", "Moje Przepisy": "My Recipes", "Szukaj: nazwa, składnik, tag…": "Search: name, ingredient, tag…", "+ Dodaj": "+ Add", "Więcej": "More", "Wszystkie (": "All (", "Najnowsze": "Newest", "Pokazuj po:": "Show in:", "oryginale": "original", "Pusto, ale smacznie zapowiada się": "Empty, but it looks promising", "Dodaj pierwszy przepis z pliku, zdjęcia, tekstu ze strony albo wpisz ręcznie.": "Add your first recipe from a file, a photo, text from a website, or type it in.", "+ Dodaj przepis": "+ Add recipe", "Nic nie znaleziono.": "Nothing found.", "Usuń z ulubionych": "Remove from favourites", "Dodaj do ulubionych": "Add to favourites", " porcji": " servings", "✦ dopisek AI": "✦ AI note", "Eksport dotyczy ": "Export covers ", "przepisów widocznych po filtrowaniu (": "recipes visible after filtering (", "wszystkich przepisów (": "all recipes (", "Zeszyt PDF A5": "A5 PDF notebook", "Kopia zapasowa (JSON)": "Backup (JSON)", "Wczytaj kopię": "Restore backup", "Duplikaty": "Duplicates", "Zamknij": "Close", "Brak przepisów": "No recipes", "oryginał": "original", "✦ Przetłumacz na ": "✦ Translate to ", " Tłumaczę…": " Translating…", "Ten przepis nie ma jeszcze wersji: ": "This recipe has no version yet in: ", "AI jest dostępne po otwarciu aplikacji w claude.ai.": "AI is available when the app is opened in claude.ai.", ". Ilości i liczby są z oryginału.": ". Quantities and numbers come from the original.", " Oryginał zmienił się od tłumaczenia. ": " The original changed after translation. ", "Odśwież": "Refresh", "Kliknij, aby usunąć oznaczenie": "Click to remove the mark", "Oryginalne": "Original", "Brak liczby porcji: dodaj ją w edycji, żeby skalować.": "No serving count: add it in Edit to enable scaling.", "Przeliczone ×": "Scaled ×", ". Czasy i rozmiar formy w krokach mogą wymagać zmiany.": ". Times and pan size in the steps may need adjusting.", "Brak składników.": "No ingredients.", "Brak kroków.": "No steps.", "≈ przeliczenie objętości na gramy jest orientacyjne (zależy od produktu i sposobu nabierania).": "≈ volume-to-gram conversion is approximate (depends on the product and how it is measured).", "Usuń": "Delete", "Brak dopisków. AI może sprawdzić, czy w przepisie czegoś nie brakuje.": "No notes yet. AI can check whether anything is missing from the recipe.", "Wykryte braki przy imporcie: ": "Gaps found during import: ", "Sprawdź ponownie": "Check again", "Sprawdź braki (AI)": "Check for gaps (AI)", " Sprawdzam…": " Checking…", "Niczego istotnego nie brakuje": "Nothing important is missing", "Edytuj": "Edit", "Dodaj": "Add", "Twoje zmiany, wrażenia, co następnym razem zrobić inaczej.": "Your changes, impressions, what to do differently next time.", "Dodano ": "Added ", " · zmieniono ": " · changed ", "👩‍🍳 Gotuj": "👩‍🍳 Cook", "Eksport": "Export", "Usunąć przepis?": "Delete recipe?", "” zostanie usunięty na stałe. Możesz najpierw zrobić kopię zapasową.": "” will be deleted permanently. You can make a backup first.", "Anuluj": "Cancel", "Usunięto": "Deleted", "Nie udało się usunąć": "Could not delete", "Ulubione": "Favourites", "Do wypróbowania": "To try", "Oznaczono: ": "Marked: ", "Usunięto oznaczenie": "Mark removed", "Moje notatki": "My notes", "Zapisz": "Save", "Kroki": "Steps", "Ilości przeliczone na ": "Quantities scaled to ", " porcji.": " servings.", "Krok ": "Step ", " z ": " of ", "← Wstecz": "← Back", "Smacznego! Jak wyszło?": "Enjoy! How did it turn out?", "Ten przepis był na liście „Do wypróbowania”.": "This recipe was on your “To try” list.", "Możesz od razu oznaczyć przepis.": "You can mark the recipe right away.", "Usuń z „Do wypróbowania”": "Remove from “To try”", "★ Do ulubionych": "★ Add to favourites", "Smacznego!": "Enjoy!", "Dalej →": "Next →", "Gotowe ✓": "Done ✓", "Do kroków →": "To steps →", "Ekran może się wygaszać: ta przeglądarka nie pozwala go zablokować": "The screen may dim: this browser does not allow keeping it on", "Nowy przepis": "New recipe", "Edycja": "Edit", "– wybierz –": "– choose –", "+ nowa kategoria…": "+ new category…", "np. Kuchnia duńska": "e.g. Danish cuisine", "Nowa kategoria": "New category", "200 g mąki pszennej\\n2 jajka\\n1 łyżeczka soli\\n# Sos:\\n100 ml śmietany": "200 g flour\\n2 eggs\\n1 tsp salt\\n# Sauce:\\n100 ml cream", "Każdy krok w nowej linii": "Each step on a new line", "Twoje uwagi": "Your notes", "✦ Dopiski AI": "✦ AI notes", "· zostaną oznaczone, nie mieszają się z przepisem": "· kept marked, never mixed into the recipe", "Jeśli sprawdzisz wskazówkę i chcesz ją włączyć do przepisu, przepisz ją do kroków lub notatek, a dopisek usuń.": "If you have checked a tip and want it in the recipe, copy it into the steps or notes and delete the AI note.", "Import: przepis ": "Import: recipe ", ". Sprawdź i zapisz.": ". Review and save.", "Tytuł": "Title", "np. Pierogi ruskie": "e.g. Potato pierogi", "Kategoria": "Category", "Język oryginału": "Original language", "Porcje": "Servings", "Przygotowanie": "Prep", "Gotowanie": "Cook", "Tagi (po przecinku)": "Tags (comma-separated)", "wegetariańskie, szybkie": "vegetarian, quick", "Składniki: jeden w linii, nagłówek grupy zacznij od #": "Ingredients: one per line, start a group heading with #", "Kroki: każdy w nowej linii": "Steps: each on a new line", "Źródło: nazwa": "Source: name", "Źródło: link": "Source: link", "np. Mama, Kwestia Smaku": "e.g. Mum, a cookbook", "Podobny przepis już istnieje": "A similar recipe already exists", "Znalazłam podobne przepisy w Twojej bazie:": "Similar recipes found in your collection:", " – podobieństwo ": " – similarity ", " (prawdopodobny duplikat)": " (likely duplicate)", "Podobieństwo liczę z nazwy (także tłumaczeń) i listy składników.": "Similarity is based on the name (including translations) and the ingredient list.", "Otwórz istniejący": "Open existing", "Zapisz mimo to": "Save anyway", "Zapisano": "Saved", "Dodaj przepis": "Add recipe", "📄 Plik / zdjęcie": "📄 File / photo", "🔗 Link / tekst": "🔗 Link / text", "✍️ Ręcznie": "✍️ Manually", "AI nie jest dostępne w tym widoku, więc rozpoznawanie przepisów z plików i tekstu nie zadziała. Działają: plik .html ze stroną przepisu, kopia zapasowa .json i dodawanie ręczne.": "AI is not available in this view, so reading recipes from files and text will not work. Still working: a saved .html recipe page, a .json backup and manual entry.", "Wybierz pliki lub upuść tutaj": "Choose files or drop them here", "Zdjęcie przepisu (JPG/PNG), PDF, Word (.docx), tekst (.txt, .md), zapisana strona (.html), kopia zapasowa (.json). Możesz wybrać kilka naraz.": "Recipe photo (JPG/PNG), PDF, Word (.docx), text (.txt, .md), saved web page (.html), backup (.json). You can pick several at once.", "Przepisy z Google Drive: pobierz dokument jako .docx lub .pdf i wybierz go tutaj. Notatki z telefonu: skopiuj tekst do zakładki „Link / tekst”.": "Recipes from Google Drive: download the document as .docx or .pdf and choose it here. Phone notes: copy the text into the “Link / text” tab.", "Czytam ": "Reading ", "Rozpoznawanie zdjęć nie jest dostępne tutaj": "Photo recognition is not available here", "AI odczytuje zdjęcie ": "AI is reading photo ", "Plik jest pusty": "The file is empty", "AI rozpoznaje przepis z ": "AI is reading the recipe from ", "Nie znalazłam przepisu w wybranych plikach.": "No recipe found in the selected files.", "✦ Rozpoznaj przepis": "✦ Recognise recipe", "Wklej tekst przepisu": "Paste the recipe text", "AI rozpoznaje przepis…": "AI is reading the recipe…", "Nie znalazłam przepisu w tym tekście.": "No recipe found in this text.", "Jak dodać z linku: ": "Adding from a link: ", "ta aplikacja nie może sama otworzyć cudzej strony (przeglądarka to blokuje). Otwórz przepis, zaznacz tekst (składniki i kroki), skopiuj i wklej poniżej. Link wklej w pierwsze pole, żeby zapisał się jako źródło.": "this app cannot open other websites itself (the browser blocks it). Open the recipe, select the text (ingredients and steps), copy and paste it below. Put the link in the first field so it is saved as the source.", "Alternatywa: wyślij link Claude w czacie i poproś o dodanie przepisu do tej aplikacji.": "Alternative: send the link to Claude in chat and ask to add the recipe to this app.", "https://… (link do przepisu, zapisze się jako źródło)": "https://… (recipe link, saved as the source)", "Wklej tutaj tekst przepisu: ze strony, z notatek w telefonie, z maila…": "Paste the recipe text here: from a website, phone notes, an email…", "Link (opcjonalnie)": "Link (optional)", "Tekst przepisu": "Recipe text", "Sprawdź import (": "Review import (", "Zapisz wszystkie": "Save all", "Przejrzyj rozpoznane przepisy. „Sprawdź i zapisz” otwiera edycję, w której poprawisz błędy odczytu.": "Review the recognised recipes. “Review and save” opens the editor where you can fix reading errors.", " składników": " ingredients", " kroków": " steps", "brak porcji": "no servings", "⚠ Braki: ": "⚠ Missing: ", " dopisek/dopiski AI": " AI note(s)", "⧉ Podobny do: ": "⧉ Similar to: ", "⧉ Podobny do innego przepisu w tym imporcie": "⧉ Similar to another recipe in this import", "Sprawdź i zapisz": "Review and save", "Zapisz od razu": "Save now", "Pomiń": "Skip", "Zapisano ": "Saved ", "Duplikaty i podobne przepisy": "Duplicates and similar recipes", "Pary przepisów o podobnej nazwie (także w tłumaczeniach) lub podobnych składnikach. Od 80% to prawdopodobne duplikaty.": "Pairs of recipes with similar names (including translations) or similar ingredients. 80% and above are likely duplicates.", "Nie znalazłam podobnych przepisów.": "No similar recipes found.", " prawdopodobny duplikat": " likely duplicate", "Poczekaj chwilę i spróbuj ponownie": "Wait a moment and try again", "Skopiuj zawartość": "Copy the content", "Pobieranie plików nie jest dostępne w tym widoku. Skopiuj tekst i wklej do pliku.": "File downloads are not available in this view. Copy the text and paste it into a file.", "Kopiuj": "Copy", "Skopiowano": "Copied", "Zaznacz i skopiuj ręcznie": "Select and copy manually", "Pobieranie plików nie jest dostępne w tym widoku": "File downloads are not available in this view", "Eksport przepisu": "Export recipe", "Wersja: ": "Version: ", ", przeliczona na ": ", scaled to ", ", jednostki: ": ", units: ", "JSON (kopia)": "JSON (backup)", "Markdown / tekst": "Markdown / text", "Szerszy lewy margines na dziurki (segregator)": "Wider left margin for hole punching (binder)", "Kompaktowo (mniejsza czcionka, więcej na stronie)": "Compact (smaller font, more per page)", " przepis(y). Każdy przepis zaczyna się na nowej stronie. Jednostki: ": " recipe(s). Each recipe starts on a new page. Units: ", "Przygotuj podgląd": "Prepare preview", " Składam strony A5…": " Laying out A5 pages…", " Renderuję stronę ": " Rendering page ", " Przepis nie zmieścił się na jednej stronie": " The recipe did not fit on one page", ": możesz spróbować trybu kompaktowego.": ": you can try compact mode.", "Drukowanie: wybierz papier A5 i skalę 100%. Na A4 ustaw „2 strony na arkusz” i przetnij kartkę na pół.": "Printing: choose A5 paper and 100% scale. On A4, set “2 pages per sheet” and cut the sheet in half.", "Podgląd PDF": "PDF preview", "Zapisz PDF": "Save PDF", "Nie udało się utworzyć PDF: ": "Could not create PDF: ", "oryginalne": "original", "strona": "page", "stron(y)": "pages", " strony A5.": " A5 pages.", " przepis": " recipe", "Śniadania": "Breakfast", "Zupy": "Soups", "Dania główne": "Main dishes", "Sałatki": "Salads", "Przekąski": "Snacks", "Desery": "Desserts", "Ciasta i wypieki": "Cakes & baking", "Pieczywo": "Bread", "Sosy i dodatki": "Sauces & sides", "Napoje": "Drinks", "Przetwory": "Preserves", "Inne": "Other"};
+function tx(s) { return S.settings.ui === 'en' && UI_EN[s] != null ? UI_EN[s] : s; }
+const CAT_SET = new Set(DEFAULT_CATS);
+function saveSettings() { try { localStorage.setItem('cookingAssistant.settings', JSON.stringify(S.settings)); } catch (e) { } }
+
+// ---- tiny DOM helper ----
+function h(tag, attrs, ...kids) {
+  const el = document.createElement(tag);
+  if (attrs) for (const [k, v] of Object.entries(attrs)) {
+    if (v == null || v === false) continue;
+    if (k === 'class') el.className = v;
+    else if (k === 'style') el.style.cssText = v;
+    else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+    else if (k === 'value') el.value = v;
+    else if (k === 'checked') el.checked = !!v;
+    else el.setAttribute(k, v === true ? '' : v);
+  }
+  for (const k of kids.flat(Infinity)) {
+    if (k == null || k === false) continue;
+    el.append(k instanceof Node ? k : document.createTextNode(CAT_SET.has(String(k)) ? tx(String(k)) : String(k)));
+  }
+  return el;
+}
+const app = document.getElementById('app');
+function toast(msg, ms = 2600) {
+  document.querySelectorAll('.toast').forEach(x => x.remove());
+  const t = h('div', { class: 'toast' }, msg);
+  document.body.append(t); setTimeout(() => t.remove(), ms);
+}
+function modal(title, body, actions) {
+  return new Promise(res => {
+    const bg = h('div', { class: 'modal-bg' });
+    const close = (v) => { bg.remove(); res(v); };
+    bg.addEventListener('click', e => { if (e.target === bg) close(null); });
+    const acts = h('div', { class: 'acts' }, (actions || [{ label: 'OK', value: true, primary: true }]).map(a =>
+      h('button', { class: 'btn' + (a.primary ? ' primary' : '') + (a.danger ? ' danger' : '') + (a.ai ? ' ai' : ''), onclick: () => close(a.value) }, a.label)));
+    bg.append(h('div', { class: 'modal' }, h('h2', null, title), body, acts));
+    document.body.append(bg);
+  });
+}
+function uid() { return 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+function getR(id) { return S.recipes.find(r => r.id === id); }
+function clean(o) { return JSON.parse(JSON.stringify(o)); }
+
+// ---- storage ----
+// ================= STANDALONE: storage, AI via Anthropic API, sync =================
+const MODELS = { 'claude-sonnet-5-5': 'Claude Sonnet 5.5', 'claude-haiku-5-5': 'Claude Haiku 5.5' };
+function lsGet(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }
+function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { toast(tx('Nie udało się zapisać w przeglądarce')); return false; } }
+function apiKey() { return lsGet('cookingAssistant.apikey', ''); }
+function apiModel() { const m = lsGet('cookingAssistant.model', 'claude-sonnet-5-5'); return MODELS[m] ? m : 'claude-sonnet-5-5'; }
+function blobToB64(blob) { return new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result).split(',')[1]); fr.onerror = rej; fr.readAsDataURL(blob); }); }
+async function shrinkImage(blob) {
+  try {
+    const bmp = await createImageBitmap(blob);
+    const max = 1568, sc = Math.min(1, max / Math.max(bmp.width, bmp.height));
+    const c = document.createElement('canvas'); c.width = Math.round(bmp.width * sc); c.height = Math.round(bmp.height * sc);
+    c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+    return await new Promise(r => c.toBlob(r, 'image/jpeg', 0.85));
+  } catch (e) { return blob; }
+}
+function parseJsonLoose(t) {
+  const s = String(t || '').trim();
+  try { return JSON.parse(s); } catch (e) { }
+  const f = s.match(/```(?:json)?\s*([\s\S]*?)```/); if (f) { try { return JSON.parse(f[1]); } catch (e) { } }
+  const a = s.search(/[\[{]/), b = Math.max(s.lastIndexOf('}'), s.lastIndexOf(']'));
+  if (a >= 0 && b > a) { try { return JSON.parse(s.slice(a, b + 1)); } catch (e) { } }
+  throw { code: 'invalid_json', message: tx('Nie udało się odczytać odpowiedzi. Spróbuj zapytać jeszcze raz.') };
+}
+// Same contract as the claude.ai `sample` capability, implemented with the Anthropic Messages API.
+const apiSample = {
+  async limits() { return { images: { maxCount: 5 } }; },
+  async json(input, opts) {
+    opts = opts || {};
+    const key = apiKey();
+    if (!key) throw { code: 'no_key', message: tx('Dodaj klucz API w Ustawieniach, żeby używać AI.') };
+    let turns = typeof input === 'string' ? [{ role: 'user', content: input }] : input.map(m => ({ role: m.role, content: m.content }));
+    const merged = [];
+    turns.forEach(m => { const last = merged[merged.length - 1]; if (last && last.role === m.role) last.content += '\n\n' + m.content; else merged.push({ role: m.role, content: m.content }); });
+    const msgs = merged.map(m => ({ role: m.role, content: [{ type: 'text', text: m.content }] }));
+    if (opts.images && opts.images.length) {
+      const blocks = [];
+      for (const im of Array.from(opts.images).slice(0, 5)) blocks.push({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: await blobToB64(await shrinkImage(im)) } });
+      const lastUser = msgs[msgs.length - 1];
+      lastUser.content = blocks.concat(lastUser.content);
+    }
+    let resp;
+    try {
+      resp = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST', signal: opts.signal,
+        headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+        body: JSON.stringify({ model: apiModel(), max_tokens: 8000, system: 'You are a helper inside a personal recipe app. Your reply is parsed by code: reply with ONE valid JSON value only, no other text.', messages: msgs }),
+      });
+    } catch (e) {
+      if (e && e.name === 'AbortError') throw { code: 'cancelled', message: 'cancelled' };
+      throw { code: 'network', message: tx('Brak połączenia z internetem albo z API.') };
+    }
+    if (!resp.ok) {
+      let detail = ''; try { const j = await resp.json(); detail = (j.error && j.error.message) || ''; } catch (e) { }
+      if (resp.status === 401) throw { code: 'bad_key', message: tx('Klucz API jest nieprawidłowy albo został usunięty.') };
+      if (resp.status === 429) throw { code: 'rate_limited', message: tx('Za dużo zapytań do AI, spróbuj za chwilę') };
+      if (resp.status === 400 && /credit|billing/i.test(detail)) throw { code: 'billing', message: tx('Brak środków na koncie API (sprawdź Billing w Anthropic Console).') };
+      throw { code: 'upstream_error', message: 'API ' + resp.status + (detail ? ': ' + detail : '') };
+    }
+    const data = await resp.json();
+    const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+    if (data.stop_reason === 'max_tokens') throw { code: 'invalid_json', message: tx('Odpowiedź AI była za długa. Spróbuj z krótszym tekstem.') };
+    return parseJsonLoose(text);
+  },
+};
+const fileDownloads = {
+  async save({ filename, data }) {
+    const blob = data instanceof Blob ? data : new Blob([data], { type: /\.json$/.test(filename) ? 'application/json' : 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = filename; document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+    return { status: 'saved' };
+  },
+};
+function refreshAi() { S.sample = apiKey() ? apiSample : null; S.sampleImages = true; }
+async function initStore() {
+  S.local = true;
+  S.recipes = lsGet('cookingAssistant.local', []);
+  S.deleted = lsGet('cookingAssistant.deleted', []);
+  S.downloads = fileDownloads;
+  refreshAi();
+  S.loaded = true; render();
+  try { if (navigator.storage && navigator.storage.persist) S.persisted = await navigator.storage.persist(); } catch (e) { }
+}
+function persistLocal() { lsSet('cookingAssistant.local', S.recipes); }
+async function saveRecipe(r) {
+  r.updatedAt = Date.now(); if (!r.createdAt) r.createdAt = r.updatedAt;
+  const i = S.recipes.findIndex(x => x.id === r.id);
+  if (i >= 0) S.recipes[i] = clean(r); else S.recipes.push(clean(r));
+  S.deleted = S.deleted.filter(d => d.id !== r.id);
+  persistLocal(); lsSet('cookingAssistant.deleted', S.deleted);
+}
+async function deleteRecipe(id) {
+  S.recipes = S.recipes.filter(r => r.id !== id);
+  S.deleted = S.deleted.filter(d => d.id !== id).concat([{ id, at: Date.now() }]).slice(-2000);
+  persistLocal(); lsSet('cookingAssistant.deleted', S.deleted);
+}
+// ---- sync file ----
+function syncPayload(withAssistant) {
+  const p = { app: 'cooking-assistant', version: 2, exportedAt: new Date().toISOString(), recipes: S.recipes.map(clean), deleted: S.deleted };
+  if (withAssistant) { const a = lsGet('cookingAssistant.asst', null); if (a) p.assistant = a; }
+  return p;
+}
+function stamp() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function mergeSync(j) {
+  const incoming = Array.isArray(j) ? j : (j.recipes || (j.title ? [j] : []));
+  const tombs = Array.isArray(j.deleted) ? j.deleted : [];
+  const st = { added: 0, updated: 0, removed: 0, same: 0 };
+  const byId = new Map(S.recipes.map(r => [r.id, r]));
+  const localTomb = new Map(S.deleted.map(d => [d.id, d.at]));
+  for (const x of incoming) {
+    if (!x || !x.title) continue;
+    const r = Object.assign(blankRecipe(), clean(x));
+    if (!r.id || !/^[A-Za-z0-9_-]+$/.test(r.id)) r.id = uid();
+    if (!r.updatedAt) r.updatedAt = r.createdAt || 1;
+    const cur = byId.get(r.id);
+    if (!cur) {
+      if (localTomb.has(r.id) && localTomb.get(r.id) >= r.updatedAt) continue;
+      byId.set(r.id, r); st.added++;
+    } else if ((r.updatedAt || 0) > (cur.updatedAt || 0)) { byId.set(r.id, r); st.updated++; }
+    else st.same++;
+  }
+  for (const t of tombs) {
+    if (!t || !t.id) continue;
+    const cur = byId.get(t.id);
+    if (cur && (cur.updatedAt || 0) <= t.at) { byId.delete(t.id); st.removed++; }
+    if (!localTomb.has(t.id) || localTomb.get(t.id) < t.at) localTomb.set(t.id, t.at);
+  }
+  S.recipes = Array.from(byId.values());
+  S.deleted = Array.from(localTomb, ([id, at]) => ({ id, at })).filter(d => !byId.has(d.id)).slice(-2000);
+  persistLocal(); lsSet('cookingAssistant.deleted', S.deleted);
+  if (j.assistant && typeof j.assistant === 'object') {
+    const mine = lsGet('cookingAssistant.asst', null);
+    const merged = mine ? clean(mine) : clean(j.assistant);
+    if (mine) {
+      if ((j.assistant.updatedAt || 0) > (mine.updatedAt || 0)) { merged.people = j.assistant.people || merged.people; merged.shared = j.assistant.shared || merged.shared; merged.updatedAt = j.assistant.updatedAt; }
+      const ids = new Set((merged.facts || []).map(f => f.id));
+      (j.assistant.facts || []).forEach(f => { if (f && f.id && !ids.has(f.id)) merged.facts.push(f); });
+    }
+    lsSet('cookingAssistant.asst', merged); S.asst = null;
+  }
+  return st;
+}
+function syncSummary(st) { return tx('Nowe: ') + st.added + ' · ' + tx('zaktualizowane: ') + st.updated + ' · ' + tx('usunięte: ') + st.removed; }
+// ---- settings ----
+function renderSettings() {
+  const head = h('header', { class: 'top' }, h('div', { class: 'wrap row' },
+    h('button', { class: 'iconbtn', onclick: () => goto('list') }, '←'), h('div', { class: 'grow', style: 'font-weight:600' }, tx('Ustawienia'))));
+  const key = apiKey();
+  const keyIn = h('input', { type: 'password', placeholder: 'sk-ant-…', value: key, autocomplete: 'off' });
+  const model = h('select', null, Object.entries(MODELS).map(([k, v]) => h('option', { value: k, selected: apiModel() === k ? 'selected' : null }, v + (k.includes('haiku') ? tx(' (tańszy, szybszy)') : tx(' (lepsza jakość)')))));
+  const status = h('div', { class: 'hint-small', style: 'margin-top:6px' });
+  const saveKey = () => { lsSet('cookingAssistant.apikey', keyIn.value.trim()); lsSet('cookingAssistant.model', model.value); refreshAi(); };
+  const fi = h('input', { type: 'file', accept: '.json,application/json', style: 'display:none', onchange: async () => {
+    const f = fi.files && fi.files[0]; if (!f) return;
+    try { const j = JSON.parse(await f.text()); const st = mergeSync(j); toast(syncSummary(st), 4500); render(); }
+    catch (e) { toast(tx('To nie jest plik z przepisami')); }
+  } });
+  const body = h('div', { class: 'wrap' },
+    h('div', { class: 'panel' }, h('h2', { style: 'font-size:19px' }, '✦ ' + tx('AI (klucz API Anthropic)')),
+      h('p', { class: 'hint-small' }, tx('Klucz jest zapisany tylko w tej przeglądarce na tym urządzeniu. Nie trafia do kodu ani do pliku synchronizacji. Bez klucza aplikacja działa, ale bez funkcji AI.')),
+      h('label', { class: 'f' }, tx('Klucz API')), h('div', { class: 'row' }, keyIn, h('button', { class: 'btn small', onclick: () => { keyIn.type = keyIn.type === 'password' ? 'text' : 'password'; } }, '👁')),
+      h('label', { class: 'f' }, tx('Model')), model,
+      h('div', { class: 'row wrapflex', style: 'margin-top:10px' },
+        h('button', { class: 'btn primary', onclick: () => { saveKey(); toast(tx('Zapisano')); } }, tx('Zapisz')),
+        h('button', { class: 'btn ai', onclick: async (e) => {
+          saveKey(); if (!apiKey()) { status.textContent = tx('Najpierw wpisz klucz.'); return; }
+          e.target.disabled = true; status.textContent = tx('Sprawdzam…');
+          try { const r = await apiSample.json('Reply with {"ok":true}'); status.textContent = r && r.ok ? '✓ ' + tx('Klucz działa.') : tx('Dziwna odpowiedź, ale połączenie działa.'); }
+          catch (er) { status.textContent = '✕ ' + (er.message || er.code); }
+          e.target.disabled = false;
+        } }, tx('Sprawdź klucz')),
+        key ? h('button', { class: 'btn danger', onclick: () => { lsSet('cookingAssistant.apikey', ''); refreshAi(); render(); toast(tx('Klucz usunięty z tego urządzenia')); } }, tx('Usuń klucz')) : null),
+      status),
+    h('div', { class: 'panel' }, h('h2', { style: 'font-size:19px' }, '⇄ ' + tx('Synchronizacja plikiem')),
+      h('p', { class: 'hint-small' }, tx('Przepisy są zapisane na każdym urządzeniu osobno. Żeby przenieść zmiany: na jednym urządzeniu zapisz plik, prześlij go (np. przez Google Drive, maila, Messengera), a na drugim wczytaj. Wczytanie scala: dodaje nowe, aktualizuje nowsze wersje i usuwa przepisy usunięte na drugim urządzeniu. Niczego nie nadpisuje starszą wersją.')),
+      h('div', { class: 'row wrapflex', style: 'margin-top:8px' },
+        h('button', { class: 'btn primary', onclick: () => exportFile(JSON.stringify(syncPayload(true)), 'recipes-sync-' + stamp() + '.json') }, tx('Zapisz plik synchronizacji')),
+        h('button', { class: 'btn', onclick: () => fi.click() }, tx('Wczytaj i scal plik')), fi),
+      h('p', { class: 'hint-small', style: 'margin-top:10px' }, tx('Dla mamy: plik tylko z przepisami (bez profilu asystenta). Jej kopia jest osobna, więc nic, co zrobi u siebie, nie zmieni Twoich przepisów.')),
+      h('button', { class: 'btn', onclick: () => exportFile(JSON.stringify(syncPayload(false)), 'recipes-' + stamp() + '.json') }, tx('Plik tylko z przepisami'))),
+    h('div', { class: 'panel' }, h('h2', { style: 'font-size:19px' }, tx('Dane na tym urządzeniu')),
+      h('p', { class: 'hint-small' }, S.recipes.length + ' ' + tx('przepisów') + ' · ' + (S.persisted ? tx('przeglądarka nie usunie danych automatycznie') : tx('przeglądarka może usunąć dane przy braku miejsca: rób czasem plik synchronizacji jako kopię')))));
+  app.append(head, body);
+}
+
+// ---- AI ----
+function aiReady() { return !!S.sample; }
+async function ai(prompt, opts) {
+  if (!S.sample) throw new Error(tx('AI niedostępne w tym widoku'));
+  try { return await S.sample.json(prompt, Object.assign({ modelTier: 'default' }, opts || {})); }
+  catch (e) {
+    if (e && e.code === 'not_granted') { S.sample = null; softRender(); throw new Error(tx('Brak zgody na AI')); }
+    if (e && e.code === 'rate_limited') throw new Error(tx('Za dużo zapytań do AI, spróbuj za chwilę'));
+    throw new Error((e && (e.message || e.code)) || tx('Błąd AI'));
+  }
+}
+const CAT_LIST = () => Array.from(new Set(DEFAULT_CATS.concat(S.recipes.map(r => r.category).filter(Boolean))));
+function parsePrompt(text, hasImages) {
+  return `Jesteś precyzyjnym parserem przepisów kulinarnych. ${hasImages ? 'Przepis jest na załączonym obrazie (lub obrazach). Odczytaj tekst dokładnie.' : 'Wyodrębnij przepis(y) z tekstu poniżej.'}
+Zwróć WYŁĄCZNIE JSON w formacie:
+{"recipes":[{"title":string,"lang":"pl"|"en"|"da"|"inny kod ISO","category":string,"tags":[string],"servings":number|null,"prepTime":string,"cookTime":string,"sourceName":string,"ingredients":[{"header":boolean,"qty":number|null,"qtyMax":number|null,"unit":string,"item":string}],"steps":[string],"missing":[string],"hints":[string]}]}
+Zasady:
+- Przepisuj TYLKO to, co jest w źródle, w oryginalnym języku. Nie zgaduj i nie uzupełniaj pól przepisu. Gdy czegoś brakuje, zostaw "" lub null i opisz brak w "missing" (${S.settings.ui === 'en' ? 'in English' : 'po polsku'}, krótko).
+- "category": wybierz jedną z: ${CAT_LIST().join(', ')}. Jeśli nie pasuje żadna, "Inne".
+- "tags": 0-5 krótkich tagów ${S.settings.ui === 'en' ? 'in English (e.g. vegetarian, quick, gluten-free)' : 'po polsku (np. wegetariańskie, szybkie, bez glutenu)'} tylko jeśli wynikają z treści.
+- "unit": jednostka dokładnie jak w źródle (np. "łyżki", "dl", "cup", "g"), bez liczby; "" gdy brak. Ułamki jako liczby dziesiętne (1/2 -> 0.5). Zakres "2-3" -> qty 2, qtyMax 3.
+- "header": true dla nagłówków grup składników (np. "Ciasto:"), wtedy nazwa w "item".
+- "steps": kolejne kroki bez numeracji.
+- "hints": 0-4 krótkie wskazówki, które pomogą uzupełnić ISTOTNE braki (np. temperatura piekarnika, czas pieczenia, liczba porcji, brakujące ilości). Pisz w języku przepisu, ostrożnie ("zwykle", "około"). Pusta lista, jeśli niczego ważnego nie brakuje. Te wskazówki zostaną wyraźnie oznaczone jako dopisek AI.
+- Jeśli źródło zawiera kilka przepisów, zwróć każdy osobno. Jeśli nie ma żadnego przepisu, zwróć {"recipes":[]}.
+${hasImages ? '' : '\nTEKST ŹRÓDŁOWY:\n"""\n' + text.slice(0, 60000) + '\n"""'}`;
+}
+function normalizeParsed(x, source) {
+  const ings = Array.isArray(x.ingredients) ? x.ingredients.map(i => {
+    if (!i || typeof i !== 'object') return null;
+    if (i.header) return { header: true, item: String(i.item || '').trim() };
+    const uk = unitKey(String(i.unit || '').split(/\s+/)[0]) || (String(i.unit || '').toLowerCase().replace(/\./g, '') === 'fl oz' ? 'floz' : '');
+    return {
+      qty: typeof i.qty === 'number' ? round3(i.qty) : null,
+      qtyMax: typeof i.qtyMax === 'number' ? round3(i.qtyMax) : null,
+      unit: uk, unitRaw: String(i.unit || '').trim(), item: String(i.item || '').trim(),
+    };
+  }).filter(i => i && i.item) : [];
+  const lang = ['pl', 'en', 'da'].includes(x.lang) ? x.lang : (x.lang ? String(x.lang).slice(0, 5) : 'pl');
+  return {
+    id: uid(), title: String(x.title || tx('Bez tytułu')).trim(), lang,
+    category: x.category && typeof x.category === 'string' ? x.category : '',
+    tags: Array.isArray(x.tags) ? x.tags.map(String).slice(0, 6) : [],
+    servings: typeof x.servings === 'number' && x.servings > 0 ? x.servings : null,
+    prepTime: String(x.prepTime || ''), cookTime: String(x.cookTime || ''),
+    source: Object.assign({ name: String(x.sourceName || '') }, source || {}),
+    ingredients: ings,
+    steps: Array.isArray(x.steps) ? x.steps.map(s => String(s).trim()).filter(Boolean) : [],
+    notes: '',
+    missing: Array.isArray(x.missing) ? x.missing.map(String) : [],
+    ai: { hints: (Array.isArray(x.hints) ? x.hints : []).map(t => ({ id: uid(), text: String(t) })).filter(h => h.text.trim()) },
+    tr: {},
+  };
+}
+async function aiParse(text, source, images) {
+  const res = await ai(parsePrompt(text, !!(images && images.length)), images && images.length ? { images, modelTier: 'default' } : undefined);
+  const arr = res && Array.isArray(res.recipes) ? res.recipes : [];
+  return arr.map(x => normalizeParsed(x, source));
+}
+async function aiTranslate(r, target) {
+  const src = { title: r.title, items: r.ingredients.map(i => i.item), steps: r.steps, hints: ((r.ai && r.ai.hints) || []).map(h => h.text) };
+  const res = await ai(`Przetłumacz przepis z języka "${LANGS[r.lang] || r.lang}" na "${LANGS[target]}".
+Zwróć WYŁĄCZNIE JSON {"title":string,"items":[string],"steps":[string],"hints":[string]}.
+- Tablice muszą mieć dokładnie tę samą długość i kolejność co wejście (items: ${src.items.length}, steps: ${src.steps.length}, hints: ${src.hints.length}).
+- "items" to same nazwy składników (bez ilości i jednostek): tłumacz na nazwy używane w sklepach i kuchni kraju docelowego.
+- Gdy produkt nie ma dokładnego odpowiednika, podaj najbliższy i oryginalną nazwę w nawiasie.
+- Nie zmieniaj liczb, temperatur ani czasów. Niczego nie dodawaj.
+WEJŚCIE:
+${JSON.stringify(src)}`, { modelTier: 'default' });
+  const fix = (a, n, fb) => { const o = Array.isArray(a) ? a.map(String) : []; return Array.from({ length: n }, (_, i) => o[i] != null ? o[i] : fb[i]); };
+  return { title: String(res.title || r.title), items: fix(res.items, src.items.length, src.items), steps: fix(res.steps, src.steps.length, src.steps), hints: fix(res.hints, src.hints.length, src.hints), sig: sig(r), at: Date.now() };
+}
+async function aiHints(r) {
+  const res = await ai(`Oto przepis w formacie JSON. Sprawdź, czy brakuje ISTOTNYCH informacji potrzebnych, żeby go ugotować (np. liczba porcji, czasy, temperatura piekarnika, rozmiar formy, brakujące ilości składników, niejasne kroki).
+Zaproponuj maksymalnie 4 krótkie, konkretne wskazówki w języku "${LANGS[r.lang] || r.lang}". Pisz ostrożnie ("zwykle", "około"), nie wymyślaj szczegółów niepewnych. Jeśli nic istotnego nie brakuje, zwróć pustą listę.
+Zwróć WYŁĄCZNIE JSON {"hints":[string]}.
+PRZEPIS:
+${JSON.stringify({ title: r.title, servings: r.servings, prepTime: r.prepTime, cookTime: r.cookTime, ingredients: r.ingredients.map(ingredientToLine), steps: r.steps })}`);
+  return (Array.isArray(res.hints) ? res.hints : []).map(t => ({ id: uid(), text: String(t) })).filter(h => h.text.trim());
+}
+
+// ---- file reading ----
+const LIBS = {};
+function loadScript(url) {
+  if (LIBS[url]) return LIBS[url];
+  LIBS[url] = new Promise((res, rej) => { const s = document.createElement('script'); s.src = url; s.onload = res; s.onerror = () => { delete LIBS[url]; rej(new Error(tx('Nie udało się wczytać biblioteki'))); }; document.head.append(s); });
+  return LIBS[url];
+}
+const CDN = {
+  pdf: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js',
+  pdfw: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js',
+  mammoth: 'https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js',
+  h2c: 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js',
+  jspdf: 'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js',
+};
+async function readFile(file) {
+  const name = (file.name || '').toLowerCase();
+  if ((file.type || '').startsWith('image/') || /\.(png|jpe?g|webp|gif)$/.test(name)) return { images: [file] };
+  if (/\.(heic|heif)$/.test(name)) throw new Error(tx('Format HEIC nie jest obsługiwany. Zapisz zdjęcie jako JPG.'));
+  if (name.endsWith('.pdf')) {
+    await loadScript(CDN.pdf);
+    const lib = window.pdfjsLib; lib.GlobalWorkerOptions.workerSrc = CDN.pdfw;
+    const pdf = await lib.getDocument({ data: await file.arrayBuffer() }).promise;
+    let text = '';
+    for (let p = 1; p <= Math.min(pdf.numPages, 40); p++) {
+      const pg = await pdf.getPage(p); const c = await pg.getTextContent();
+      text += c.items.map(i => i.str + (i.hasEOL ? '\n' : ' ')).join('') + '\n\n';
+    }
+    if (text.replace(/\s/g, '').length > 40) return { text };
+    // scanned PDF -> images
+    const images = [];
+    for (let p = 1; p <= Math.min(pdf.numPages, 4); p++) {
+      const pg = await pdf.getPage(p); const vp = pg.getViewport({ scale: 1.6 });
+      const c = document.createElement('canvas'); c.width = vp.width; c.height = vp.height;
+      await pg.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+      images.push(await new Promise(r => c.toBlob(r, 'image/jpeg', 0.85)));
+    }
+    return { images };
+  }
+  if (name.endsWith('.docx')) {
+    await loadScript(CDN.mammoth);
+    const r = await window.mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() });
+    return { text: r.value };
+  }
+  const raw = await file.text();
+  if (name.endsWith('.json')) {
+    try { const j = JSON.parse(raw); const list = Array.isArray(j) ? j : (j.recipes || [j]); if (list.length && list[0].title) return { sync: j }; } catch (e) { }
+  }
+  if (/\.html?$/.test(name) || /<html|<body|<div/i.test(raw.slice(0, 2000))) {
+    const ld = recipesFromJsonLd(raw);
+    if (ld.length) return { ld };
+    return { text: stripTags(raw.replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ')) };
+  }
+  return { text: raw };
+}
+
+// ---- view helpers ----
+function displayLang(r) {
+  if (S.viewLang[r.id]) return S.viewLang[r.id];
+  const p = S.settings.prefLang;
+  if (p && (p === r.lang || (r.tr && r.tr[p]))) return p;
+  return r.lang;
+}
+function trOf(r, lang) {
+  if (lang === r.lang) return null;
+  return (S.tempTr[r.id] && S.tempTr[r.id][lang]) || (r.tr && r.tr[lang]) || null;
+}
+function titleIn(r, lang) { const t = trOf(r, lang); return (t && t.title) || r.title; }
+function factorOf(r) { const s = S.servings[r.id]; return (r.servings && s) ? s / r.servings : 1; }
+function goto(view, id) {
+  S.view = view; S.id = id || null;
+  render(); window.scrollTo(0, 0);
+}
+function softRender() {
+  if (['list', 'recipe', 'dupes'].includes(S.view) && !S.editingNotes) render();
+  else if (S.view === 'loading') render();
+}
+
+// ================= RENDER =================
+function render() {
+  document.documentElement.lang = S.settings.ui === 'en' ? 'en' : 'pl';
+  document.title = 'Cooking Assistant';
+  app.innerHTML = '';
+  if (!S.loaded) { app.append(h('div', { class: 'wrap' }, h('div', { class: 'empty' }, h('span', { class: 'spinner' }), tx(' Wczytuję przepisy…'), S.note ? h('p', null, S.note) : null))); return; }
+  ({ list: renderList, recipe: renderRecipe, edit: renderEdit, import: renderImport, review: renderReview, dupes: renderDupes, assistant: renderAssistant, asstProfile: renderAsstProfile, settings: renderSettings }[S.view] || renderList)();
+}
+function topBanners() {
+  const b = [];
+  if (!S.canWrite) b.push(h('div', { class: 'banner' }, tx('Masz dostęp tylko do przeglądania.')));
+  if (S.note) b.push(h('div', { class: 'banner' }, S.note));
+  return b;
+}
+function filtered() {
+  const terms = normalize(S.q).split(/\s+/).filter(Boolean);
+  let list = S.recipes.filter(r => {
+    if (S.cat && r.category !== S.cat) return false;
+    if (S.stat && r.status !== S.stat) return false;
+    if (!terms.length) return true;
+    const hay = normalize([r.title, r.category, (r.tags || []).join(' '), r.notes, r.source && r.source.name,
+    (r.ingredients || []).map(i => i.item).join(' '), (r.steps || []).join(' '),
+    Object.values(r.tr || {}).map(t => [t.title, (t.items || []).join(' ')].join(' ')).join(' ')].join(' '));
+    return terms.every(t => hay.includes(t));
+  });
+  if (S.sort === 'az') list.sort((a, b) => titleIn(a, displayLang(a)).localeCompare(titleIn(b, displayLang(b)), 'pl'));
+  else list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  return list;
+}
+function renderList() {
+  const cats = CAT_LIST().filter(c => S.recipes.some(r => r.category === c));
+  const search = h('input', { type: 'search', placeholder: tx('Szukaj: nazwa, składnik, tag…'), value: S.q, oninput: e => { S.q = e.target.value; drawGrid(); } });
+  const head = h('header', { class: 'top' }, h('div', { class: 'wrap' },
+    h('div', { class: 'row' }, h('div', { class: 'brand grow' }, 'Cooking Assistant'),
+      S.canWrite ? h('button', { class: 'btn primary', onclick: () => goto('import') }, tx('+ Dodaj')) : null,
+      h('div', { class: 'seg', title: 'Język aplikacji / App language' }, ['pl', 'en'].map(k => h('button', { class: S.settings.ui === k ? 'on' : '', onclick: () => { S.settings.ui = k; saveSettings(); render(); } }, k.toUpperCase()))),
+      h('button', { class: 'iconbtn', title: tx('Ustawienia'), onclick: () => goto('settings') }, '⚙'),
+      h('button', { class: 'iconbtn', title: tx('Więcej'), onclick: listMenu }, '⋯')),
+    h('div', { class: 'row', style: 'margin-top:8px' }, search),
+    h('button', { class: 'asstbtn', onclick: () => goto('assistant') }, tx('✦ Asystent: co dziś ugotować?')),
+    h('div', { class: 'chips' },
+      h('button', { class: 'chip' + (!S.cat && !S.stat ? ' on' : ''), onclick: () => { S.cat = ''; S.stat = ''; render(); } }, tx('Wszystkie (') + S.recipes.length + ')'),
+      Object.entries(STATUS).map(([k, st]) => h('button', { class: 'chip' + (S.stat === k ? ' on' : ''), onclick: () => { S.stat = S.stat === k ? '' : k; render(); } }, st.icon + ' ' + tx(st.label) + ' (' + S.recipes.filter(r => r.status === k).length + ')')),
+      cats.map(c => h('button', { class: 'chip' + (S.cat === c ? ' on' : ''), onclick: () => { S.cat = S.cat === c ? '' : c; render(); } }, tx(c) + ' (' + S.recipes.filter(r => r.category === c).length + ')')))));
+  const gridWrap = h('div');
+  const ctrls = h('div', { class: 'row wrapflex', style: 'margin-top:10px;justify-content:space-between' },
+    h('div', { class: 'seg' }, ['new', 'az'].map(k => h('button', { class: S.sort === k ? 'on' : '', onclick: () => { S.sort = k; render(); } }, k === 'new' ? tx('Najnowsze') : 'A–Z'))),
+    h('div', { class: 'row' }, h('span', { class: 'hint-small' }, tx('Pokazuj po:')),
+      h('div', { class: 'seg' }, [['', tx('oryginale')]].concat(Object.keys(LANGS).map(k => [k, LANG_SHORT[k]])).map(([k, lbl]) =>
+        h('button', { class: S.settings.prefLang === k ? 'on' : '', onclick: () => { S.settings.prefLang = k; S.viewLang = {}; saveSettings(); render(); } }, lbl)))));
+  function drawGrid() {
+    gridWrap.innerHTML = '';
+    const list = filtered();
+    if (!S.recipes.length) {
+      gridWrap.append(h('div', { class: 'empty' }, h('h2', null, tx('Pusto, ale smacznie zapowiada się')), h('p', null, tx('Dodaj pierwszy przepis z pliku, zdjęcia, tekstu ze strony albo wpisz ręcznie.')),
+        S.canWrite ? h('button', { class: 'btn primary', onclick: () => goto('import') }, tx('+ Dodaj przepis')) : null)); return;
+    }
+    if (!list.length) { gridWrap.append(h('div', { class: 'empty' }, tx('Nic nie znaleziono.'))); return; }
+    gridWrap.append(h('div', { class: 'grid' }, list.map(r => {
+      const lang = displayLang(r);
+      const time = [r.prepTime, r.cookTime].filter(Boolean).join(' + ');
+      return h('div', { class: 'card', onclick: () => goto('recipe', r.id) },
+        h('div', { class: 'row', style: 'align-items:flex-start' }, h('h3', { class: 'grow' }, titleIn(r, lang)),
+          S.canWrite ? h('button', { class: 'iconbtn', style: 'font-size:18px;padding:2px 6px;margin:-4px -6px 0 0;color:' + (r.status === 'fav' ? '#C8902A' : '#c9bfb4'), title: r.status === 'fav' ? tx('Usuń z ulubionych') : tx('Dodaj do ulubionych'), onclick: (e) => { e.stopPropagation(); setStatus(r, r.status === 'fav' ? '' : 'fav'); } }, r.status === 'fav' ? '★' : '☆')
+            : (r.status === 'fav' ? h('span', { style: 'color:#C8902A' }, '★') : null)),
+        r.status === 'try' ? h('div', null, h('span', { class: 'stattag' }, STATUS.try.icon + ' ' + tx(STATUS.try.label))) : null,
+        h('div', { class: 'meta' }, [tx(r.category), time, r.servings ? r.servings + tx(' porcji') : '', LANG_SHORT[r.lang] || r.lang].filter(Boolean).join(' · ')),
+        h('div', null, (r.tags || []).map(t => h('span', { class: 'tag' }, t)),
+          r.ai && r.ai.hints && r.ai.hints.length ? h('span', { class: 'aitag' }, tx('✦ dopisek AI')) : null, r.aiGenerated ? h('span', { class: 'aitag' }, tx('✦ przepis AI')) : null));
+    })));
+  }
+  drawGrid();
+  app.append(head, h('div', { class: 'wrap' }, topBanners(), ctrls, gridWrap));
+}
+async function listMenu() {
+  const list = filtered();
+  const body = h('div', null,
+    h('p', { class: 'hint-small' }, tx('Eksport dotyczy ') + (S.q || S.cat ? tx('przepisów widocznych po filtrowaniu (') + list.length + ')' : tx('wszystkich przepisów (') + list.length + ')') + '.'));
+  const v = await modal(tx('Więcej'), body, [
+    { label: tx('Zeszyt PDF A5'), value: 'pdf', primary: true },
+    { label: tx('Kopia zapasowa (JSON)'), value: 'json' },
+    { label: 'Markdown', value: 'md' },
+    { label: '⚙ ' + tx('Ustawienia i synchronizacja'), value: 'settings' },
+    { label: tx('Duplikaty'), value: 'dupes' },
+    { label: tx('Zamknij'), value: null },
+  ].filter(Boolean));
+  if (v === 'pdf') { if (!list.length) return toast(tx('Brak przepisów')); pdfFlow(list.map(r => ({ r, lang: displayLang(r), factor: 1 })), 'recipe-notebook'); }
+  if (v === 'json') exportJSON(list, 'recipes-backup');
+  if (v === 'md') exportFile(list.map(r => toMarkdown(r, displayLang(r), 1)).join('\n\n---\n\n'), 'recipes.md');
+  if (v === 'settings') goto('settings');
+  if (v === 'dupes') goto('dupes');
+}
+
+// ---- recipe view ----
+function renderRecipe() {
+  const r = getR(S.id);
+  if (!r) { goto('list'); return; }
+  const lang = displayLang(r);
+  const isOrig = lang === r.lang;
+  const t = trOf(r, lang);
+  const lab = L[S.settings.ui] || L.pl;
+  const factor = factorOf(r);
+  const mode = S.settings.units;
+  const curServ = S.servings[r.id] || r.servings;
+
+  const head = h('header', { class: 'top' }, h('div', { class: 'wrap row' },
+    h('button', { class: 'iconbtn', onclick: () => goto('list') }, '←'),
+    h('div', { class: 'grow', style: 'font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap' }, titleIn(r, lang)),
+    h('div', { class: 'seg' }, Array.from(new Set([r.lang, 'pl', 'en', 'da'])).filter(k => LANGS[k] || k === r.lang).map(k =>
+      h('button', { class: k === lang ? 'on' : '', title: k === r.lang ? tx('oryginał') : '', onclick: () => { S.viewLang[r.id] = k; render(); } }, (LANG_SHORT[k] || k.toUpperCase()) + (k === r.lang ? '•' : ''))))));
+
+  const body = h('div', { class: 'wrap' }, topBanners());
+  // translation state
+  if (!isOrig && !t) {
+    const btn = h('button', { class: 'btn ai', disabled: !aiReady() }, tx('✦ Przetłumacz na ') + (LANGS[lang] || lang) + ' (AI)');
+    btn.onclick = async () => {
+      btn.disabled = true; btn.innerHTML = ''; btn.append(h('span', { class: 'spinner' }), tx(' Tłumaczę…'));
+      try {
+        const tr = await aiTranslate(r, lang);
+        if (S.canWrite) { const nr = clean(r); nr.tr = Object.assign({}, nr.tr, { [lang]: tr }); await saveRecipe(nr); }
+        else { S.tempTr[r.id] = Object.assign({}, S.tempTr[r.id], { [lang]: tr }); }
+        render();
+      } catch (e) { toast(e.message); render(); }
+    };
+    body.append(h('div', { class: 'panel' }, h('p', null, tx('Ten przepis nie ma jeszcze wersji: ') + (LANGS[lang] || lang) + '.'), btn,
+      !aiReady() ? h('p', { class: 'hint-small' }, tx('AI wymaga klucza API w Ustawieniach.')) : null));
+    app.append(head, body); return;
+  }
+  if (t) {
+    const stale = t.sig && t.sig !== sig(r);
+    body.append(h('div', { class: 'trbanner' }, '✦ ' + lab.tr + ' ' + (LANGS[r.lang] || r.lang) + tx('. Ilości i liczby są z oryginału.'),
+      stale ? h('span', null, tx(' Oryginał zmienił się od tłumaczenia. '), h('button', { class: 'btn small ai', onclick: async (e) => { e.target.disabled = true; try { const tr = await aiTranslate(r, lang); const nr = clean(r); nr.tr[lang] = tr; await saveRecipe(nr); render(); } catch (er) { toast(er.message); e.target.disabled = false; } } }, tx('Odśwież'))) : null));
+  }
+  body.append(h('h1', { class: 'rtitle' }, (t && t.title) || r.title));
+  if (r.aiGenerated) body.append(h('div', { class: 'trbanner' }, '✦ ' + tx('Ten przepis wymyśliło AI (asystent). Nie pochodzi ze sprawdzonego źródła, więc sprawdź ilości i czasy.')));
+  if (S.canWrite) body.append(h('div', { class: 'row wrapflex', style: 'margin:4px 0 8px' },
+    Object.entries(STATUS).map(([k, st]) => h('button', { class: 'btn small statbtn' + (r.status === k ? ' on' : ''), title: r.status === k ? tx('Kliknij, aby usunąć oznaczenie') : '', onclick: () => setStatus(r, r.status === k ? '' : k) }, st.icon + ' ' + tx(st.label) + (r.status === k ? '  ✕' : '')))));
+  else if (r.status) body.append(h('span', { class: 'stattag' }, STATUS[r.status].icon + ' ' + tx(STATUS[r.status].label)));
+  const times = [r.prepTime ? lab.prep + ': ' + r.prepTime : '', r.cookTime ? lab.cook + ': ' + r.cookTime : ''].filter(Boolean).join(' · ');
+  body.append(h('div', { class: 'meta' }, [tx(r.category), times].filter(Boolean).join(' · ')),
+    h('div', null, (r.tags || []).map(x => h('span', { class: 'tag' }, x))));
+  if (r.source && (r.source.url || r.source.name)) {
+    body.append(h('div', { class: 'meta', style: 'margin-top:4px' }, lab.source + ': ',
+      r.source.url ? h('a', { href: r.source.url, target: '_blank', rel: 'noopener' }, r.source.name || hostOf(r.source.url)) : r.source.name));
+  }
+  // controls
+  body.append(h('div', { class: 'ctrl' },
+    r.servings ? h('div', { class: 'stepper' },
+      h('button', { onclick: () => { S.servings[r.id] = Math.max(1, (curServ || 1) - 1); render(); } }, '−'),
+      h('span', null, curServ + ' ' + lab.servings),
+      h('button', { onclick: () => { S.servings[r.id] = (curServ || 1) + 1; render(); } }, '+'))
+      : h('span', { class: 'hint-small' }, tx('Brak liczby porcji: dodaj ją w edycji, żeby skalować.')),
+    h('div', { class: 'seg' }, [['orig', tx('Oryginalne')], ['metric', 'g / ml']].map(([k, l]) =>
+      h('button', { class: mode === k ? 'on' : '', onclick: () => { S.settings.units = k; saveSettings(); render(); } }, l)))));
+  if (factor !== 1) body.append(h('div', { class: 'hint-small', style: 'margin-top:6px' }, tx('Przeliczone ×') + fmtNum(factor, 'pl') + tx('. Czasy i rozmiar formy w krokach mogą wymagać zmiany.')));
+
+  // ingredients
+  const ingPanel = h('div', { class: 'panel' }, h('h2', { style: 'font-size:20px;margin-bottom:6px' }, lab.ing));
+  let anyApprox = false;
+  if (!r.ingredients.length) ingPanel.append(h('p', { class: 'hint-small' }, tx('Brak składników.')));
+  ingPanel.append(h('ul', { class: 'ing' }, r.ingredients.map((ing, i) => {
+    const name = (t && t.items && t.items[i]) || ing.item;
+    if (ing.header) return h('li', { class: 'hdr' }, name);
+    const d = displayQty(ing, factor, mode, lang, isOrig);
+    if (d.approx) anyApprox = true;
+    return h('li', null, h('span', { class: 'q' }, (d.approx ? '≈ ' : '') + d.q),
+      h('span', null, name, d.orig ? h('div', { class: 'orig' }, '(' + d.orig + (d.note ? ', ' + d.note : '') + ')') : null));
+  })));
+  if (anyApprox) ingPanel.append(h('p', { class: 'hint-small', style: 'margin-top:8px' }, tx('≈ przeliczenie objętości na gramy jest orientacyjne (zależy od produktu i sposobu nabierania).')));
+  body.append(ingPanel);
+
+  // steps
+  const steps = (t && t.steps) || r.steps;
+  body.append(h('div', { class: 'panel' }, h('h2', { style: 'font-size:20px;margin-bottom:10px' }, lab.steps),
+    steps.length ? h('ol', { class: 'steps' }, steps.map(s => h('li', null, mode === 'metric' ? convertTemps(s) : s))) : h('p', { class: 'hint-small' }, tx('Brak kroków.'))));
+
+  // AI hints
+  const hints = (r.ai && r.ai.hints) || [];
+  const hintTexts = (t && t.hints && t.hints.length === hints.length) ? t.hints : hints.map(x => x.text);
+  const aibox = h('div', { class: 'aibox' }, h('div', { class: 'lbl' }, '✦ ' + lab.ai, h('span', { style: 'font-weight:400;color:var(--muted)' }, '· ' + lab.aiSub)));
+  if (hints.length) aibox.append(h('ul', null, hints.map((x, i) => h('li', null, hintTexts[i],
+    S.canWrite ? h('button', { class: 'iconbtn', style: 'font-size:14px', title: tx('Usuń'), onclick: async () => { const nr = clean(r); nr.ai.hints = nr.ai.hints.filter(y => y.id !== x.id); await saveRecipe(nr); render(); } }, '✕') : null))));
+  else aibox.append(h('p', { class: 'hint-small', style: 'margin:6px 0 0' }, tx('Brak dopisków. AI może sprawdzić, czy w przepisie czegoś nie brakuje.')));
+  if (r.missing && r.missing.length) aibox.append(h('p', { class: 'hint-small', style: 'margin:8px 0 0' }, tx('Wykryte braki przy imporcie: ') + r.missing.join('; ')));
+  if (S.canWrite && aiReady()) {
+    const b = h('button', { class: 'btn small ai', style: 'margin-top:10px' }, hints.length ? tx('Sprawdź ponownie') : tx('Sprawdź braki (AI)'));
+    b.onclick = async () => {
+      b.disabled = true; b.innerHTML = ''; b.append(h('span', { class: 'spinner' }), tx(' Sprawdzam…'));
+      try { const nh = await aiHints(r); const nr = clean(r); nr.ai = { hints: nh, at: Date.now() }; await saveRecipe(nr); if (!nh.length) toast(tx('Niczego istotnego nie brakuje')); render(); }
+      catch (e) { toast(e.message); render(); }
+    };
+    aibox.append(b);
+  }
+  body.append(aibox);
+
+  // notes
+  const notesPanel = h('div', { class: 'panel' }, h('div', { class: 'row' }, h('h2', { class: 'grow', style: 'font-size:20px' }, lab.notes),
+    S.canWrite ? h('button', { class: 'btn small', onclick: () => editNotes(r, notesPanel) }, r.notes ? tx('Edytuj') : tx('Dodaj')) : null),
+    r.notes ? h('div', { class: 'notes', style: 'margin-top:8px' }, r.notes) : h('p', { class: 'hint-small' }, tx('Twoje zmiany, wrażenia, co następnym razem zrobić inaczej.')));
+  body.append(notesPanel);
+  body.append(h('p', { class: 'hint-small', style: 'margin-top:14px' }, tx('Dodano ') + new Date(r.createdAt || Date.now()).toLocaleDateString(S.settings.ui === 'en' ? 'en-GB' : 'pl-PL') + (r.updatedAt && r.updatedAt !== r.createdAt ? tx(' · zmieniono ') + new Date(r.updatedAt).toLocaleDateString(S.settings.ui === 'en' ? 'en-GB' : 'pl-PL') : '')));
+
+  const bar = h('div', { class: 'actionbar' }, h('div', { class: 'inner' },
+    h('button', { class: 'btn primary', onclick: () => cookMode(r) }, tx('👩‍🍳 Gotuj')),
+    h('button', { class: 'btn', onclick: () => pdfFlow([{ r, lang, factor }], slug(titleIn(r, lang))) }, 'PDF A5'),
+    h('button', { class: 'btn', onclick: () => exportMenu(r, lang, factor) }, tx('Eksport')),
+    S.canWrite ? h('button', { class: 'btn', onclick: () => { S.editing = clean(r); S.pendingIdx = -1; goto('edit'); } }, tx('Edytuj')) : null,
+    S.canWrite ? h('button', { class: 'btn danger', onclick: async () => {
+      const ok = await modal(tx('Usunąć przepis?'), h('p', null, '„' + r.title + tx('” zostanie usunięty na stałe. Możesz najpierw zrobić kopię zapasową.')), [{ label: tx('Anuluj'), value: false }, { label: tx('Usuń'), value: true, danger: true }]);
+      if (ok) { try { await deleteRecipe(r.id); toast(tx('Usunięto')); goto('list'); } catch (e) { toast(tx('Nie udało się usunąć')); } }
+    } }, tx('Usuń')) : null));
+  app.append(head, body, bar);
+}
+const STATUS = { fav: { icon: '★', label: 'Ulubione' }, try: { icon: '🕐', label: 'Do wypróbowania' } };
+async function setStatus(r, st) {
+  const nr = clean(r); nr.status = st || '';
+  try { await saveRecipe(nr); } catch (e) { return; }
+  toast(st ? tx('Oznaczono: ') + tx(STATUS[st].label) : tx('Usunięto oznaczenie'));
+  softRender();
+}
+function hostOf(u) { try { return new URL(u).hostname.replace(/^www\./, ''); } catch (e) { return u; } }
+function slug(s) { return normalize(s).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 50) || 'recipe'; }
+function editNotes(r, panel) {
+  S.editingNotes = true;
+  const ta = h('textarea', { value: r.notes || '', style: 'margin-top:8px' });
+  panel.innerHTML = '';
+  panel.append(h('h2', { style: 'font-size:20px' }, tx('Moje notatki')), ta, h('div', { class: 'row', style: 'margin-top:8px;justify-content:flex-end' },
+    h('button', { class: 'btn', onclick: () => { S.editingNotes = false; render(); } }, tx('Anuluj')),
+    h('button', { class: 'btn primary', onclick: async () => { const nr = clean(r); nr.notes = ta.value; try { await saveRecipe(nr); } catch (e) { } S.editingNotes = false; render(); } }, tx('Zapisz'))));
+  ta.focus();
+}
+
+// ---- cook mode ----
+async function cookMode(r) {
+  const lang = displayLang(r), t = trOf(r, lang), isOrig = lang === r.lang, factor = factorOf(r), mode = S.settings.units;
+  const steps = (t && t.steps) || r.steps;
+  let idx = 0, tab = steps.length ? 'ing' : 'ing';
+  const done = new Set(), got = new Set();
+  let lock = null;
+  try { if (navigator.wakeLock) lock = await navigator.wakeLock.request('screen'); } catch (e) { lock = null; }
+  const ov = h('div', { class: 'cook' });
+  const close = () => { try { lock && lock.release(); } catch (e) { } ov.remove(); };
+  function draw() {
+    ov.innerHTML = '';
+    const lab = L[S.settings.ui] || L.pl;
+    ov.append(h('div', { class: 'head' }, h('div', { class: 'grow', style: 'font-family:Fraunces,serif;font-size:20px;font-weight:700' }, titleIn(r, lang)),
+      h('div', { class: 'seg' }, h('button', { class: tab === 'ing' ? 'on' : '', onclick: () => { tab = 'ing'; draw(); } }, lab.ing), h('button', { class: tab === 'steps' ? 'on' : '', onclick: () => { tab = 'steps'; draw(); } }, tx('Kroki'))),
+      h('button', { class: 'iconbtn', onclick: close }, '✕')));
+    const body = h('div', { class: 'body' });
+    if (tab === 'ing') {
+      r.ingredients.forEach((ing, i) => {
+        const name = (t && t.items && t.items[i]) || ing.item;
+        if (ing.header) { body.append(h('div', { style: 'font-weight:700;margin-top:14px' }, name)); return; }
+        const d = displayQty(ing, factor, mode, lang, isOrig);
+        const cb = h('input', { type: 'checkbox', checked: got.has(i), onchange: () => { got.has(i) ? got.delete(i) : got.add(i); draw(); } });
+        body.append(h('label', { class: 'chk' + (got.has(i) ? ' done' : '') }, cb, h('span', null, h('b', null, (d.approx ? '≈ ' : '') + d.q), ' ', name)));
+      });
+      if (factor !== 1) body.append(h('p', { class: 'hint-small' }, tx('Ilości przeliczone na ') + S.servings[r.id] + tx(' porcji.')));
+    } else {
+      if (!steps.length) body.append(h('p', null, tx('Brak kroków.')));
+      else {
+        body.append(h('div', { class: 'hint-small' }, tx('Krok ') + (idx + 1) + tx(' z ') + steps.length),
+          h('div', { class: 'stepcard' + (done.has(idx) ? ' done' : ''), onclick: () => { done.has(idx) ? done.delete(idx) : done.add(idx); draw(); } }, mode === 'metric' ? convertTemps(steps[idx]) : steps[idx]),
+          h('hr', { style: 'border:none;border-top:1px solid var(--line);margin:16px 0' }),
+          h('ol', { class: 'alls' }, steps.map((s, i) => h('li', { class: done.has(i) ? 'done' : '', style: i === idx ? 'font-weight:700' : '', onclick: () => { idx = i; draw(); } }, (x => x.length > 90 ? x.slice(0, 90) + '…' : x)(mode === 'metric' ? convertTemps(s) : s)))));
+      }
+      const hints = (r.ai && r.ai.hints) || [];
+      if (hints.length) body.append(h('div', { class: 'aibox', style: 'font-size:16px' }, h('div', { class: 'lbl' }, '✦ ' + lab.ai), h('ul', null, hints.map((x, i) => h('li', null, (t && t.hints && t.hints[i]) || x.text)))));
+    }
+    ov.append(body);
+    if (tab === 'steps' && steps.length) ov.append(h('div', { class: 'foot' },
+      h('button', { class: 'btn', disabled: idx === 0, onclick: () => { idx--; draw(); } }, tx('← Wstecz')),
+      h('button', { class: 'btn primary', onclick: async () => {
+        done.add(idx);
+        if (idx < steps.length - 1) { idx++; draw(); return; }
+        const cur = getR(r.id) || r;
+        if (S.canWrite && cur.status !== 'fav') {
+          const v = await modal(tx('Smacznego! Jak wyszło?'), h('p', null, cur.status === 'try' ? tx('Ten przepis był na liście „Do wypróbowania”.') : tx('Możesz od razu oznaczyć przepis.')),
+            [{ label: tx('Zamknij'), value: null }, cur.status === 'try' ? { label: tx('Usuń z „Do wypróbowania”'), value: 'clear' } : null, { label: tx('★ Do ulubionych'), value: 'fav', primary: true }].filter(Boolean));
+          if (v === 'fav') await setStatus(cur, 'fav');
+          if (v === 'clear') await setStatus(cur, '');
+          if (v) close();
+        } else toast(tx('Smacznego!'));
+        draw();
+      } }, idx < steps.length - 1 ? tx('Dalej →') : tx('Gotowe ✓'))));
+    else if (tab === 'ing') ov.append(h('div', { class: 'foot' }, h('button', { class: 'btn primary', onclick: () => { tab = 'steps'; draw(); } }, tx('Do kroków →'))));
+  }
+  draw();
+  document.body.append(ov);
+  if (!lock) toast(tx('Ekran może się wygaszać: ta przeglądarka nie pozwala go zablokować'), 3500);
+}
+
+// ---- editor ----
+function blankRecipe() { return { id: uid(), title: '', lang: 'pl', category: '', tags: [], servings: null, prepTime: '', cookTime: '', source: { name: '', url: '' }, ingredients: [], steps: [], notes: '', ai: { hints: [] }, tr: {} }; }
+function renderEdit() {
+  const r = S.editing || blankRecipe();
+  S.editing = r;
+  const isNew = !getR(r.id);
+  const f = {};
+  const inp = (k, attrs) => (f[k] = h('input', Object.assign({ type: 'text' }, attrs)));
+  const cats = CAT_LIST();
+  const head = h('header', { class: 'top' }, h('div', { class: 'wrap row' },
+    h('button', { class: 'iconbtn', onclick: cancel }, '←'),
+    h('div', { class: 'grow', style: 'font-weight:600' }, isNew ? tx('Nowy przepis') : tx('Edycja')),
+    h('button', { class: 'btn primary', onclick: save }, tx('Zapisz'))));
+  f.cat = h('select', null, h('option', { value: '' }, tx('– wybierz –')), cats.map(c => h('option', { value: c, selected: r.category === c ? 'selected' : null }, c)), h('option', { value: '__new' }, tx('+ nowa kategoria…')));
+  f.cat.onchange = async () => {
+    if (f.cat.value !== '__new') return;
+    const ni = h('input', { type: 'text', placeholder: tx('np. Kuchnia duńska') });
+    const v = await modal(tx('Nowa kategoria'), ni, [{ label: tx('Anuluj'), value: null }, { label: tx('Dodaj'), value: 'ok', primary: true }]);
+    if (v && ni.value.trim()) { f.cat.insertBefore(h('option', { value: ni.value.trim() }, ni.value.trim()), f.cat.lastChild); f.cat.value = ni.value.trim(); } else f.cat.value = r.category || '';
+  };
+  f.lang = h('select', null, Object.entries(LANGS).map(([k, v]) => h('option', { value: k, selected: r.lang === k ? 'selected' : null }, v)));
+  f.ing = h('textarea', { style: 'min-height:200px', placeholder: tx('200 g mąki pszennej\n2 jajka\n1 łyżeczka soli\n# Sos:\n100 ml śmietany'), value: r.ingredients.map(ingredientToLine).join('\n') });
+  f.steps = h('textarea', { style: 'min-height:200px', placeholder: tx('Każdy krok w nowej linii'), value: r.steps.join('\n') });
+  f.notes = h('textarea', { placeholder: tx('Twoje uwagi'), value: r.notes || '' });
+  const hintsBox = h('div');
+  const drawHints = () => {
+    hintsBox.innerHTML = '';
+    const hs = (r.ai && r.ai.hints) || [];
+    if (!hs.length) return;
+    hintsBox.append(h('div', { class: 'aibox' }, h('div', { class: 'lbl' }, tx('✦ Dopiski AI'), h('span', { style: 'font-weight:400;color:var(--muted)' }, tx('· zostaną oznaczone, nie mieszają się z przepisem'))),
+      h('ul', null, hs.map(x => h('li', null, x.text, h('button', { class: 'iconbtn', style: 'font-size:14px', onclick: () => { r.ai.hints = hs.filter(y => y !== x); drawHints(); } }, '✕')))),
+      h('p', { class: 'hint-small' }, tx('Jeśli sprawdzisz wskazówkę i chcesz ją włączyć do przepisu, przepisz ją do kroków lub notatek, a dopisek usuń.'))));
+  };
+  drawHints();
+  const form = h('div', { class: 'wrap' }, topBanners(),
+    S.pending.length && S.pendingIdx >= 0 ? h('div', { class: 'banner' }, tx('Import: przepis ') + (S.pendingIdx + 1) + tx(' z ') + S.pending.length + tx('. Sprawdź i zapisz.')) : null,
+    h('label', { class: 'f' }, tx('Tytuł')), inp('title', { value: r.title, placeholder: tx('np. Pierogi ruskie') }),
+    h('div', { class: 'row' }, h('div', { class: 'grow' }, h('label', { class: 'f' }, tx('Kategoria')), f.cat), h('div', { class: 'grow' }, h('label', { class: 'f' }, tx('Język oryginału')), f.lang)),
+    h('div', { class: 'row' },
+      h('div', { class: 'grow' }, h('label', { class: 'f' }, tx('Porcje')), (f.serv = h('input', { type: 'number', min: '1', value: r.servings || '' }))),
+      h('div', { class: 'grow' }, h('label', { class: 'f' }, tx('Przygotowanie')), inp('prep', { value: r.prepTime, placeholder: '20 min' })),
+      h('div', { class: 'grow' }, h('label', { class: 'f' }, tx('Gotowanie')), inp('cook', { value: r.cookTime, placeholder: '45 min' }))),
+    h('label', { class: 'f' }, tx('Tagi (po przecinku)')), inp('tags', { value: (r.tags || []).join(', '), placeholder: tx('wegetariańskie, szybkie') }),
+    h('label', { class: 'f' }, tx('Składniki: jeden w linii, nagłówek grupy zacznij od #')), f.ing,
+    h('label', { class: 'f' }, tx('Kroki: każdy w nowej linii')), f.steps,
+    h('label', { class: 'f' }, tx('Moje notatki')), f.notes,
+    h('div', { class: 'row' },
+      h('div', { class: 'grow' }, h('label', { class: 'f' }, tx('Źródło: nazwa')), inp('srcName', { value: (r.source && r.source.name) || '', placeholder: tx('np. Mama, Kwestia Smaku') })),
+      h('div', { class: 'grow' }, h('label', { class: 'f' }, tx('Źródło: link')), inp('srcUrl', { value: (r.source && r.source.url) || '', placeholder: 'https://…' }))),
+    hintsBox,
+    h('div', { class: 'row', style: 'margin-top:18px;justify-content:flex-end' }, h('button', { class: 'btn', onclick: cancel }, tx('Anuluj')), h('button', { class: 'btn primary', onclick: save }, tx('Zapisz'))));
+  app.append(head, form);
+
+  function collect() {
+    const nr = clean(r);
+    nr.title = f.title.value.trim() || tx('Bez tytułu');
+    nr.lang = f.lang.value; nr.category = f.cat.value === '__new' ? '' : f.cat.value;
+    nr.servings = parseFloat(f.serv.value) > 0 ? parseFloat(f.serv.value) : null;
+    nr.prepTime = f.prep.value.trim(); nr.cookTime = f.cook.value.trim();
+    nr.tags = f.tags.value.split(',').map(s => s.trim()).filter(Boolean);
+    nr.ingredients = f.ing.value.split('\n').map(parseIngredientLine).filter(Boolean);
+    nr.steps = f.steps.value.split('\n').map(s => s.replace(/^\s*(\d+[.)]|krok\s*\d+[:.]?)\s*/i, '').trim()).filter(Boolean);
+    nr.notes = f.notes.value;
+    nr.source = Object.assign({}, nr.source, { name: f.srcName.value.trim(), url: f.srcUrl.value.trim() });
+    nr.ai = { hints: (r.ai && r.ai.hints) || [] };
+    // keep translations of unchanged ingredient items aligned when count changed
+    if (r.ingredients.length !== nr.ingredients.length) Object.values(nr.tr || {}).forEach(t => { t.sig = 'stale'; });
+    return nr;
+  }
+  async function save() {
+    const nr = collect();
+    if (isNew) {
+      const sim = findSimilar(nr, S.recipes, 0.55);
+      if (sim.length) {
+        const v = await modal(tx('Podobny przepis już istnieje'), h('div', null,
+          h('p', null, tx('Znalazłam podobne przepisy w Twojej bazie:')),
+          h('ul', null, sim.slice(0, 4).map(x => h('li', null, h('b', null, x.r.title), tx(' – podobieństwo ') + Math.round(x.s * 100) + '%' + (x.s >= 0.8 ? tx(' (prawdopodobny duplikat)') : '')))),
+          h('p', { class: 'hint-small' }, tx('Podobieństwo liczę z nazwy (także tłumaczeń) i listy składników.'))),
+          [{ label: tx('Anuluj'), value: null }, { label: tx('Otwórz istniejący'), value: 'open' }, { label: tx('Zapisz mimo to'), value: 'save', primary: true }]);
+        if (v === 'open') { S.editing = null; goto('recipe', sim[0].r.id); return; }
+        if (v !== 'save') return;
+      }
+    }
+    try { await saveRecipe(nr); } catch (e) { return; }
+    S.editing = null;
+    if (S.pendingIdx >= 0) { S.pending.splice(S.pendingIdx, 1); S.pendingIdx = -1; if (S.pending.length) { goto('review'); return; } }
+    toast(tx('Zapisano')); goto('recipe', nr.id);
+  }
+  function cancel() {
+    S.editing = null;
+    if (S.pendingIdx >= 0) { S.pendingIdx = -1; goto('review'); }
+    else if (!isNew) goto('recipe', r.id); else goto('list');
+  }
+}
+
+// ---- import ----
+function renderImport() {
+  let tab = S.importTab || 'file';
+  const head = h('header', { class: 'top' }, h('div', { class: 'wrap row' },
+    h('button', { class: 'iconbtn', onclick: () => goto('list') }, '←'), h('div', { class: 'grow', style: 'font-weight:600' }, tx('Dodaj przepis'))));
+  const body = h('div', { class: 'wrap' }, topBanners());
+  const tabs = h('div', { class: 'tabs' }, [['file', tx('📄 Plik / zdjęcie')], ['link', tx('🔗 Link / tekst')], ['manual', tx('✍️ Ręcznie')]].map(([k, l]) =>
+    h('button', { class: 'chip' + (tab === k ? ' on' : ''), onclick: () => { S.importTab = k; render(); } }, l)));
+  body.append(tabs);
+  const status = h('div', { style: 'margin-top:12px' });
+  const setBusy = (msg) => { status.innerHTML = ''; if (msg) status.append(h('div', { class: 'panel' }, h('span', { class: 'spinner' }), ' ', msg)); };
+  if (!aiReady()) body.append(h('div', { class: 'banner' }, tx('Bez klucza API rozpoznawanie przepisów z plików, zdjęć i tekstu nie działa. Działają: zapisana strona .html, plik synchronizacji .json i dodawanie ręczne. Klucz dodasz w Ustawieniach.')));
+
+  if (tab === 'file') {
+    const fi = h('input', { type: 'file', multiple: true, accept: '.txt,.md,.html,.htm,.json,.pdf,.docx,image/*', style: 'display:none' });
+    const drop = h('div', { class: 'drop', onclick: () => fi.click() },
+      h('div', { style: 'font-size:34px' }, '📥'),
+      h('div', { style: 'font-weight:600' }, tx('Wybierz pliki lub upuść tutaj')),
+      h('div', { class: 'hint-small' }, tx('Zdjęcie przepisu (JPG/PNG), PDF, Word (.docx), tekst (.txt, .md), zapisana strona (.html), kopia zapasowa (.json). Możesz wybrać kilka naraz.')));
+    drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over'); });
+    drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+    drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); handleFiles(e.dataTransfer.files); });
+    fi.onchange = () => handleFiles(fi.files);
+    body.append(h('div', { style: 'margin-top:12px' }, drop, fi),
+      h('p', { class: 'hint-small' }, tx('Przepisy z Google Drive: pobierz dokument jako .docx lub .pdf i wybierz go tutaj. Notatki z telefonu: skopiuj tekst do zakładki „Link / tekst”.')));
+    async function handleFiles(files) {
+      const out = []; let synced = false;
+      const list = Array.from(files || []);
+      for (let k = 0; k < list.length; k++) {
+        const file = list[k];
+        setBusy(tx('Czytam ') + file.name + ' (' + (k + 1) + '/' + list.length + ')…');
+        try {
+          const res = await readFile(file);
+          const src = { type: 'file', name: file.name.replace(/\.[^.]+$/, '') };
+          if (res.sync) { const st = mergeSync(res.sync); toast(syncSummary(st), 4500); synced = true; continue; }
+          if (res.ld) { res.ld.forEach(x => out.push(Object.assign(blankRecipe(), x, { source: src }))); continue; }
+          if (res.images) {
+            if (!S.sampleImages) throw new Error(tx('Rozpoznawanie zdjęć nie jest dostępne tutaj'));
+            setBusy(tx('AI odczytuje zdjęcie ') + file.name + '…');
+            out.push(...await aiParse('', Object.assign(src, { type: 'photo' }), res.images)); continue;
+          }
+          if (!res.text || !res.text.trim()) throw new Error(tx('Plik jest pusty'));
+          setBusy(tx('AI rozpoznaje przepis z ') + file.name + '…');
+          out.push(...await aiParse(res.text, src));
+        } catch (e) { toast(file.name + ': ' + e.message, 4000); }
+      }
+      setBusy('');
+      if (!out.length && synced) { goto('list'); return; }
+      if (!out.length) { status.append(h('div', { class: 'banner' }, tx('Nie znalazłam przepisu w wybranych plikach.'))); return; }
+      S.pending = out; goto('review');
+    }
+  } else if (tab === 'link') {
+    const url = h('input', { type: 'url', placeholder: tx('https://… (link do przepisu, zapisze się jako źródło)') });
+    const ta = h('textarea', { style: 'min-height:220px', placeholder: tx('Wklej tutaj tekst przepisu: ze strony, z notatek w telefonie, z maila…') });
+    const go = h('button', { class: 'btn primary', disabled: !aiReady() }, tx('✦ Rozpoznaj przepis'));
+    go.onclick = async () => {
+      if (!ta.value.trim()) { toast(tx('Wklej tekst przepisu')); return; }
+      go.disabled = true; setBusy(tx('AI rozpoznaje przepis…'));
+      try {
+        const u = url.value.trim();
+        const src = u ? { type: 'link', url: u, name: hostOf(u) } : { type: 'text', name: '' };
+        const res = await aiParse(ta.value, src);
+        setBusy('');
+        if (!res.length) { status.append(h('div', { class: 'banner' }, tx('Nie znalazłam przepisu w tym tekście.'))); go.disabled = false; return; }
+        res.forEach(r => { if (u) r.source.url = u; if (!r.source.name) r.source.name = u ? hostOf(u) : ''; });
+        S.pending = res; goto('review');
+      } catch (e) { setBusy(''); toast(e.message); go.disabled = false; }
+    };
+    body.append(h('div', { class: 'panel' },
+      h('p', { style: 'margin-top:0' }, h('b', null, tx('Jak dodać z linku: ')), tx('aplikacja nie może sama otworzyć cudzej strony (przeglądarka to blokuje). Otwórz przepis, zaznacz tekst (składniki i kroki), skopiuj i wklej poniżej. Link wklej w pierwsze pole, żeby zapisał się jako źródło.')),
+      h('label', { class: 'f' }, tx('Link (opcjonalnie)')), url,
+      h('label', { class: 'f' }, tx('Tekst przepisu')), ta,
+      h('div', { class: 'row', style: 'margin-top:10px;justify-content:flex-end' }, go)));
+  } else {
+    S.editing = blankRecipe(); S.pendingIdx = -1; S.importTab = 'file'; goto('edit'); return;
+  }
+  body.append(status);
+  app.append(head, body);
+}
+function renderReview() {
+  if (!S.pending.length) { goto('list'); return; }
+  const head = h('header', { class: 'top' }, h('div', { class: 'wrap row' },
+    h('button', { class: 'iconbtn', onclick: () => { S.pending = []; goto('list'); } }, '←'),
+    h('div', { class: 'grow', style: 'font-weight:600' }, tx('Sprawdź import (') + S.pending.length + ')'),
+    h('button', { class: 'btn primary', onclick: saveAll }, tx('Zapisz wszystkie'))));
+  const body = h('div', { class: 'wrap' }, topBanners(), h('p', { class: 'hint-small' }, tx('Przejrzyj rozpoznane przepisy. „Sprawdź i zapisz” otwiera edycję, w której poprawisz błędy odczytu.')));
+  S.pending.forEach((r, i) => {
+    const sim = findSimilar(r, S.recipes, 0.55);
+    const simPending = S.pending.filter((x, j) => j !== i).map(x => ({ r: x, s: similarity(r, x) })).filter(x => x.s >= 0.55);
+    body.append(h('div', { class: 'panel' },
+      h('h3', { style: 'font-size:19px' }, r.title),
+      h('div', { class: 'meta' }, [tx(r.category), (LANGS[r.lang] || r.lang), r.ingredients.filter(x => !x.header).length + tx(' składników'), r.steps.length + tx(' kroków'), r.servings ? r.servings + tx(' porcji') : tx('brak porcji')].filter(Boolean).join(' · ')),
+      r.missing && r.missing.length ? h('div', { class: 'warn' }, tx('⚠ Braki: ') + r.missing.join('; ')) : null,
+      r.ai && r.ai.hints && r.ai.hints.length ? h('div', null, h('span', { class: 'aitag' }, '✦ ' + r.ai.hints.length + tx(' dopisek/dopiski AI'))) : null,
+      sim.length ? h('div', { class: 'dupe' }, tx('⧉ Podobny do: ') + sim.slice(0, 3).map(x => x.r.title + ' (' + Math.round(x.s * 100) + '%)').join(', ')) : null,
+      simPending.length ? h('div', { class: 'dupe' }, tx('⧉ Podobny do innego przepisu w tym imporcie')) : null,
+      h('div', { class: 'row wrapflex', style: 'margin-top:10px' },
+        h('button', { class: 'btn primary small', onclick: () => { S.editing = clean(r); S.pendingIdx = i; goto('edit'); } }, tx('Sprawdź i zapisz')),
+        h('button', { class: 'btn small', onclick: async () => { try { await saveRecipe(r); S.pending.splice(i, 1); toast(tx('Zapisano')); render(); } catch (e) { } } }, tx('Zapisz od razu')),
+        h('button', { class: 'btn small danger', onclick: () => { S.pending.splice(i, 1); render(); } }, tx('Pomiń')))));
+  });
+  app.append(head, body);
+  async function saveAll() {
+    let n = 0;
+    for (const r of S.pending.slice()) { try { await saveRecipe(r); n++; S.pending = S.pending.filter(x => x !== r); } catch (e) { break; } }
+    toast(tx('Zapisano ') + n); render();
+  }
+}
+
+// ---- duplicates ----
+function renderDupes() {
+  const head = h('header', { class: 'top' }, h('div', { class: 'wrap row' },
+    h('button', { class: 'iconbtn', onclick: () => goto('list') }, '←'), h('div', { class: 'grow', style: 'font-weight:600' }, tx('Duplikaty i podobne przepisy'))));
+  const pairs = [];
+  for (let i = 0; i < S.recipes.length; i++) for (let j = i + 1; j < S.recipes.length; j++) {
+    const s = similarity(S.recipes[i], S.recipes[j]); if (s >= 0.55) pairs.push([S.recipes[i], S.recipes[j], s]);
+  }
+  pairs.sort((a, b) => b[2] - a[2]);
+  const body = h('div', { class: 'wrap' }, h('p', { class: 'hint-small' }, tx('Pary przepisów o podobnej nazwie (także w tłumaczeniach) lub podobnych składnikach. Od 80% to prawdopodobne duplikaty.')));
+  if (!pairs.length) body.append(h('div', { class: 'empty' }, tx('Nie znalazłam podobnych przepisów.')));
+  pairs.forEach(([a, b, s]) => body.append(h('div', { class: 'panel row wrapflex' },
+    h('div', { class: 'grow' }, h('b', null, Math.round(s * 100) + '%'), s >= 0.8 ? h('span', { class: 'dupe' }, tx(' prawdopodobny duplikat')) : null,
+      h('div', null, h('a', { href: '#', onclick: e => { e.preventDefault(); goto('recipe', a.id); } }, a.title), '  ↔  ', h('a', { href: '#', onclick: e => { e.preventDefault(); goto('recipe', b.id); } }, b.title))))));
+  app.append(head, body);
+}
+
+// ---- assistant ----
+const ASST_DEFAULT = () => ({ people: [{ name: 'Nat', likes: '', dislikes: '', diet: '' }, { name: '', likes: '', dislikes: '', diet: '' }], shared: '', facts: [] });
+S.asst = null; S.chat = []; S.asstBusy = false; S.uid = null; S.asstDraft = '';
+async function asstRefs() {
+  if (!S.db) return null;
+  if (S.uid === null) { try { const u = window.claude && await window.claude.use('user'); S.uid = (u && u.id) ? (await u.id()) || '' : ''; } catch (e) { S.uid = ''; } }
+  return S.uid ? { prof: S.db.doc('data/users/' + S.uid + '/assistant'), chat: S.db.doc('data/users/' + S.uid + '/chat') } : null;
+}
+async function loadAsst() {
+  if (S.asst) return;
+  const refs = await asstRefs();
+  let p = null, c = null;
+  if (refs) { try { const [a, b] = await Promise.all([refs.prof.get(), refs.chat.get()]); p = a.exists ? a.data() : null; c = b.exists ? b.data() : null; } catch (e) { } }
+  else { try { p = JSON.parse(localStorage.getItem('cookingAssistant.asst') || 'null'); c = JSON.parse(localStorage.getItem('cookingAssistant.chat') || 'null'); } catch (e) { } }
+  S.asst = Object.assign(ASST_DEFAULT(), p ? clean(p) : {});
+  while (S.asst.people.length < 2) S.asst.people.push({ name: '', likes: '', dislikes: '', diet: '' });
+  S.chat = c && Array.isArray(c.msgs) ? clean(c.msgs) : [];
+}
+let asstQueue = Promise.resolve(), asstWarned = false;
+function persistAsst(which) {
+  asstQueue = asstQueue.then(async () => {
+    const refs = await asstRefs();
+    const prof = clean(S.asst), chat = { msgs: clean(S.chat.slice(-40)) };
+    try {
+      if (refs) { if (which !== 'chat') await refs.prof.set(prof); if (which !== 'prof') await refs.chat.set(chat); }
+      else { localStorage.setItem('cookingAssistant.asst', JSON.stringify(prof)); localStorage.setItem('cookingAssistant.chat', JSON.stringify(chat)); }
+    } catch (e) { if (!asstWarned) { asstWarned = true; toast(tx('Nie udało się zapisać pamięci asystenta')); } }
+  });
+  return asstQueue;
+}
+function asstPeople() { return S.asst.people.filter(p => p.name || p.likes || p.dislikes || p.diet); }
+function asstRules() {
+  const a = S.asst, ppl = asstPeople();
+  const profile = ppl.map(p => `- ${p.name || '(bez imienia)'}: lubi: ${p.likes || '–'}; nie lubi / nie je: ${p.dislikes || '–'}; dieta, alergie: ${p.diet || '–'}`).join('\n') || '- (profil jeszcze pusty)';
+  const facts = a.facts.map(f => `- ${f.who ? '[' + f.who + '] ' : ''}${f.text}`).join('\n') || '- (brak)';
+  const cat = S.recipes.slice(0, 400).map(r => [r.id, r.title, r.category || '', (r.tags || []).join(','),
+    r.status === 'fav' ? 'ULUBIONY' : r.status === 'try' ? 'do wypróbowania' : '',
+    'składniki: ' + (r.ingredients || []).filter(i => !i.header).slice(0, 12).map(i => String(i.item).split(/[,(]/)[0].trim().slice(0, 25)).join(', ')].join(' | ')).join('\n') || '(brak zapisanych przepisów)';
+  const names = ppl.map(p => p.name).filter(Boolean).join(' i ') || 'użytkowniczki i jej partnera';
+  const lang = S.settings.ui === 'en' ? 'po angielsku' : 'po polsku';
+  return `Jesteś asystentem kulinarnym w prywatnej aplikacji z przepisami. Gotują: ${names}. Odpowiadaj ${lang}, ciepło, krótko i konkretnie.
+
+PROFIL (trwałe preferencje):
+${profile}
+Wspólne: ${a.shared || '–'}
+
+ZAPAMIĘTANE FAKTY:
+${facts}
+
+ZAPISANE PRZEPISY (id | tytuł | kategoria | tagi | oznaczenie | główne składniki):
+${cat}
+
+ZASADY:
+1. Najpierw szukaj w zapisanych przepisach. Polecaj je w "saved" (tylko id z listy powyżej, maks. 5) z krótkim powodem dopasowania. Chętnie sięgaj po ULUBIONE i "do wypróbowania", ale nie wyłącznie.
+2. Gdy użytkownik prosi o coś nowego albo nic z zapisanych nie pasuje, zaproponuj 1-3 nowe przepisy w "new": pełne, z ilościami w g, ml, łyżkach, łyżeczkach lub szklankach (nigdy oz ani funty). Nowe przepisy układasz sam: nie twierdź, że pochodzą z internetu, z książki ani od konkretnego autora.
+3. Bezwzględnie przestrzegaj alergii, diet i tego, czego ktoś nie je. Jeśli zapisany przepis wymaga zamiany składnika, napisz to w "why".
+4. Gdy użytkownik poda NOWĄ trwałą informację (np. "nie lubię kolendry", "mamy airfryer", "w tygodniu mamy 30 minut na gotowanie"), dodaj ją do "remember" z "who" = imię osoby lub "oboje". Nie zapamiętuj rzeczy jednorazowych (co jest dziś w lodówce, nastrój dnia). Nie dubluj faktów, które już są wyżej.
+5. Gdy użytkownik poda składniki, które ma, wybieraj przepisy, które je wykorzystują, i napisz, czego brakuje.
+6. Jeśli naprawdę brakuje kluczowej informacji, zadaj jedno krótkie pytanie w "reply" (saved i new mogą być puste).
+7. "reply" to krótka wiadomość (maks. ok. 80 słów; możesz użyć **pogrubienia** i listy z "- "). Nie powtarzaj w niej całych przepisów, karty pokażą szczegóły.
+
+Zwróć WYŁĄCZNIE JSON:
+{"reply":string,"saved":[{"id":string,"why":string}],"new":[{"title":string,"why":string,"category":string,"servings":number,"prepTime":string,"cookTime":string,"tags":[string],"ingredients":[string],"steps":[string]}],"remember":[{"who":string,"text":string}]}
+"ingredients" to linie typu "200 g mąki". "category" wybierz z: ${CAT_LIST().join(', ')}.`;
+}
+function asstMemo(m) {
+  let s = m.text || '';
+  if (m.saved && m.saved.length) s += '\n[Poleciłem zapisane: ' + m.saved.map(x => (getR(x.id) || {}).title).filter(Boolean).join(', ') + ']';
+  if (m.new && m.new.length) s += '\n[Zaproponowałem nowe: ' + m.new.map(x => x.title).join(', ') + ']';
+  return s.trim() || '…';
+}
+function asstErr(e) {
+  const c = e && e.code;
+  if (c === 'rate_limited') return tx('Za dużo zapytań do AI, spróbuj za chwilę');
+  if (c === 'not_granted' || c === 'sampling_disabled') return tx('Brak zgody na AI');
+  if (c === 'invalid_json' || c === 'empty_completion') return tx('Nie udało się odczytać odpowiedzi. Spróbuj zapytać jeszcze raz.');
+  if (e && e.message && ['no_key', 'bad_key', 'billing', 'network', 'upstream_error'].includes(c)) return e.message;
+  return tx('Coś poszło nie tak. Spróbuj ponownie.') + (c ? ' (' + c + ')' : '');
+}
+async function asstSend(text) {
+  text = (text || '').trim();
+  if (!text || S.asstBusy) return;
+  if (!aiReady()) { toast(tx('AI wymaga klucza API w Ustawieniach.')); return; }
+  S.chat.push({ role: 'user', text, at: Date.now() });
+  S.asstDraft = ''; S.asstBusy = true; S.asstCtl = new AbortController(); render();
+  const hist = S.chat.filter(m => !m.error).slice(-16).map(m => ({ role: m.role, content: m.role === 'user' ? m.text : asstMemo(m) }));
+  while (hist.length && hist[0].role !== 'user') hist.shift();
+  try {
+    const res = await S.sample.json([{ role: 'user', content: asstRules() }].concat(hist), { modelTier: 'default', cache: false, signal: S.asstCtl.signal });
+    const arr = (x) => Array.isArray(x) ? x : [];
+    const msg = { role: 'assistant', text: String((res && res.reply) || ''), saved: [], new: [], remembered: [], at: Date.now() };
+    arr(res && res.saved).forEach(x => { if (x && getR(String(x.id)) && !msg.saved.some(y => y.id === String(x.id))) msg.saved.push({ id: String(x.id), why: String(x.why || '') }); });
+    arr(res && res.new).slice(0, 3).forEach(x => {
+      if (x && x.title && Array.isArray(x.ingredients)) msg.new.push({ title: String(x.title), why: String(x.why || ''), category: String(x.category || ''), servings: Number(x.servings) > 0 ? Number(x.servings) : null, prepTime: String(x.prepTime || ''), cookTime: String(x.cookTime || ''), tags: arr(x.tags).map(String).slice(0, 5), ingredients: x.ingredients.map(String), steps: arr(x.steps).map(String) });
+    });
+    arr(res && res.remember).slice(0, 5).forEach(x => {
+      const t = String((x && x.text) || '').trim();
+      if (t && !S.asst.facts.some(f => normalize(f.text) === normalize(t))) { const f = { id: uid(), text: t, who: String((x && x.who) || ''), at: Date.now() }; S.asst.facts.push(f); msg.remembered.push({ id: f.id, text: t }); }
+    });
+    if (!msg.text && !msg.saved.length && !msg.new.length) msg.text = '…';
+    S.chat.push(msg);
+    persistAsst(msg.remembered.length ? 'both' : 'chat');
+  } catch (e) {
+    if (!e || e.code !== 'cancelled') S.chat.push({ role: 'assistant', text: asstErr(e), error: true, at: Date.now() });
+    if (e && e.code === 'not_granted') S.sample = null;
+  }
+  S.asstBusy = false; S.asstCtl = null;
+  if (S.view === 'assistant') render();
+}
+function mdLite(text) {
+  const box = h('div');
+  let ul = null;
+  String(text || '').split('\n').forEach(line => {
+    const li = line.match(/^\s*[-*•]\s+(.*)/);
+    const inline = (s) => s.split(/(\*\*[^*]+\*\*)/).map(p => /^\*\*[^*]+\*\*$/.test(p) ? h('b', null, p.slice(2, -2)) : p);
+    if (li) { if (!ul) { ul = h('ul', { style: 'margin:4px 0;padding-left:18px' }); box.append(ul); } ul.append(h('li', null, inline(li[1]))); }
+    else { ul = null; if (line.trim()) box.append(h('div', { style: 'margin:2px 0' }, inline(line))); }
+  });
+  return box;
+}
+async function saveAiRecipe(msg, n) {
+  const r = blankRecipe();
+  Object.assign(r, { title: n.title, lang: S.settings.ui === 'en' ? 'en' : 'pl', category: CAT_LIST().includes(n.category) ? n.category : '', servings: n.servings, prepTime: n.prepTime, cookTime: n.cookTime, tags: n.tags,
+    ingredients: n.ingredients.map(parseIngredientLine).filter(Boolean), steps: n.steps, source: { type: 'ai', name: tx('Asystent AI') }, status: 'try', aiGenerated: true });
+  const sim = findSimilar(r, S.recipes, 0.55);
+  if (sim.length) {
+    const v = await modal(tx('Podobny przepis już istnieje'), h('ul', null, sim.slice(0, 3).map(x => h('li', null, h('b', null, x.r.title), tx(' – podobieństwo ') + Math.round(x.s * 100) + '%'))),
+      [{ label: tx('Anuluj'), value: null }, { label: tx('Otwórz istniejący'), value: 'open' }, { label: tx('Zapisz mimo to'), value: 'save', primary: true }]);
+    if (v === 'open') { goto('recipe', sim[0].r.id); return; }
+    if (v !== 'save') return;
+  }
+  try { await saveRecipe(r); } catch (e) { return; }
+  n.savedId = r.id; persistAsst('chat'); toast(tx('Zapisano w „Do wypróbowania”')); render();
+}
+function renderAssistant() {
+  const head = h('header', { class: 'top' }, h('div', { class: 'wrap row' },
+    h('button', { class: 'iconbtn', onclick: () => { if (S.asstCtl) S.asstCtl.abort(); goto('list'); } }, '←'),
+    h('div', { class: 'grow', style: 'font-weight:600' }, '✦ ' + tx('Asystent kulinarny')),
+    h('button', { class: 'btn small', onclick: () => goto('asstProfile') }, tx('Profil i pamięć'))));
+  if (!S.asst) { app.append(head, h('div', { class: 'wrap' }, h('div', { class: 'empty' }, h('span', { class: 'spinner' })))); loadAsst().then(() => { if (S.view === 'assistant') render(); }); return; }
+  const body = h('div', { class: 'wrap', style: 'padding-bottom:150px' }, topBanners());
+  if (!aiReady()) body.append(h('div', { class: 'banner' }, tx('AI wymaga klucza API w Ustawieniach.'), ' ', h('a', { href: '#', onclick: (e) => { e.preventDefault(); goto('settings'); } }, tx('Otwórz Ustawienia'))));
+  const ask = (q) => asstSend(q);
+  if (!S.chat.length) {
+    const empty = !asstPeople().some(p => p.likes || p.dislikes || p.diet) && !S.asst.facts.length;
+    body.append(h('div', { class: 'panel' },
+      h('h2', { style: 'font-size:20px' }, tx('Co dziś gotujemy?')),
+      h('p', { style: 'margin:6px 0' }, tx('Znam Wasze zapisane przepisy') + ' (' + S.recipes.length + ') ' + tx('i to, co lubicie. Mogę polecić coś z Waszej bazy albo zaproponować nowy przepis na podstawie opisu lub składników.')),
+      empty ? h('p', { class: 'hint-small' }, tx('Wskazówka: uzupełnij profil, a propozycje będą trafniejsze.'), ' ', h('a', { href: '#', onclick: (e) => { e.preventDefault(); goto('asstProfile'); } }, tx('Uzupełnij profil'))) : null,
+      h('div', { class: 'row wrapflex', style: 'margin-top:8px' }, [
+        tx('Co ugotować dziś na obiad?'), tx('Mam kurczaka, paprykę i ryż. Co z tego zrobić?'), tx('Coś nowego i szybkiego, do 30 minut'), tx('Co z „Do wypróbowania” warto zrobić w weekend?')
+      ].map(q => h('button', { class: 'chip', style: 'white-space:normal;text-align:left', onclick: () => ask(q) }, q)))));
+  }
+  const msgs = h('div', { class: 'msgs' });
+  S.chat.forEach(m => {
+    if (m.role === 'user') { msgs.append(h('div', { class: 'bub u' }, m.text)); return; }
+    const b = h('div', { class: 'bub a' + (m.error ? ' err' : '') }, mdLite(m.text));
+    (m.remembered || []).forEach(rm => {
+      const still = S.asst.facts.some(f => f.id === rm.id);
+      b.append(h('span', { class: 'memchip' + (still ? '' : ' off') }, '🧠 ' + (still ? tx('Zapamiętano: ') : tx('Cofnięto: ')) + rm.text,
+        still ? h('button', { class: 'iconbtn', style: 'font-size:12px;padding:0 2px', title: tx('Cofnij'), onclick: () => { S.asst.facts = S.asst.facts.filter(f => f.id !== rm.id); persistAsst('prof'); render(); } }, '✕') : null));
+    });
+    (m.saved || []).forEach(x => {
+      const r = getR(x.id); if (!r) return;
+      b.append(h('div', { class: 'mini', onclick: () => goto('recipe', r.id) },
+        h('div', { style: 'font-weight:700' }, (r.status === 'fav' ? '★ ' : '') + titleIn(r, displayLang(r))),
+        h('div', { class: 'meta' }, [tx(r.category), [r.prepTime, r.cookTime].filter(Boolean).join(' + ')].filter(Boolean).join(' · ')),
+        x.why ? h('div', { style: 'font-size:14px;margin-top:3px' }, x.why) : null));
+    });
+    (m.new || []).forEach(n => {
+      const det = h('div', { style: 'display:none;margin-top:8px;font-size:14px' },
+        h('b', null, tx('Składniki')), h('ul', { style: 'margin:4px 0;padding-left:18px' }, n.ingredients.map(x => h('li', null, x))),
+        h('b', null, tx('Kroki')), h('ol', { style: 'margin:4px 0;padding-left:20px' }, n.steps.map(x => h('li', null, x))));
+      const tog = h('button', { class: 'btn small', onclick: () => { const open = det.style.display === 'none'; det.style.display = open ? 'block' : 'none'; tog.textContent = open ? tx('Zwiń') : tx('Pokaż przepis'); } }, tx('Pokaż przepis'));
+      b.append(h('div', { class: 'newr' },
+        h('div', null, h('span', { class: 'aitag' }, '✦ ' + tx('nowy przepis od AI'))),
+        h('div', { style: 'font-weight:700;margin-top:4px' }, n.title),
+        h('div', { class: 'meta' }, [n.servings ? n.servings + tx(' porcji') : '', [n.prepTime, n.cookTime].filter(Boolean).join(' + ')].filter(Boolean).join(' · ')),
+        n.why ? h('div', { style: 'font-size:14px;margin-top:3px' }, n.why) : null,
+        det,
+        h('div', { class: 'row wrapflex', style: 'margin-top:8px' }, tog,
+          n.savedId && getR(n.savedId) ? h('button', { class: 'btn small', onclick: () => goto('recipe', n.savedId) }, '✓ ' + tx('Zapisano · otwórz'))
+            : (S.canWrite ? h('button', { class: 'btn small primary', onclick: () => saveAiRecipe(m, n) }, tx('Zapisz do przepisów')) : null))));
+    });
+    msgs.append(b);
+  });
+  if (S.asstBusy) msgs.append(h('div', { class: 'bub a' }, h('span', { class: 'spinner' }), ' ' + tx('Myślę… to może potrwać do minuty.'), ' ',
+    h('button', { class: 'btn small', onclick: () => S.asstCtl && S.asstCtl.abort() }, tx('Stop'))));
+  body.append(msgs);
+  const ta = h('textarea', { rows: 1, placeholder: tx('Napisz, na co macie ochotę albo jakie macie składniki…'), value: S.asstDraft, oninput: (e) => { S.asstDraft = e.target.value; e.target.style.height = 'auto'; e.target.style.height = Math.min(140, e.target.scrollHeight) + 'px'; } });
+  ta.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !('ontouchstart' in window)) { e.preventDefault(); asstSend(ta.value); } });
+  const comp = h('div', { class: 'composer' }, h('div', { class: 'inner' }, ta, h('button', { class: 'btn primary', disabled: S.asstBusy, onclick: () => asstSend(ta.value) }, tx('Wyślij'))));
+  app.append(head, body, comp);
+  requestAnimationFrame(() => window.scrollTo(0, document.body.scrollHeight));
+}
+function renderAsstProfile() {
+  if (!S.asst) { loadAsst().then(() => { if (S.view === 'asstProfile') render(); }); app.append(h('div', { class: 'empty' }, h('span', { class: 'spinner' }))); return; }
+  const a = clean(S.asst);
+  const head = h('header', { class: 'top' }, h('div', { class: 'wrap row' },
+    h('button', { class: 'iconbtn', onclick: () => goto('assistant') }, '←'),
+    h('div', { class: 'grow', style: 'font-weight:600' }, tx('Profil i pamięć')),
+    h('button', { class: 'btn primary', onclick: save }, tx('Zapisz'))));
+  const fields = a.people.map((p, i) => {
+    const f = {
+      name: h('input', { type: 'text', value: p.name, placeholder: i === 0 ? tx('Twoje imię') : tx('Imię partnera') }),
+      likes: h('textarea', { style: 'min-height:60px', value: p.likes, placeholder: tx('np. kuchnia azjatycka, ostre, makarony, pieczone warzywa') }),
+      dislikes: h('textarea', { style: 'min-height:60px', value: p.dislikes, placeholder: tx('np. kolendra, grzyby, wątróbka') }),
+      diet: h('textarea', { style: 'min-height:50px', value: p.diet, placeholder: tx('np. bez laktozy, alergia na orzechy, mało mięsa') }),
+    };
+    return { f, el: h('div', { class: 'panel' }, h('h2', { style: 'font-size:18px' }, i === 0 ? tx('Osoba 1') : tx('Osoba 2')),
+      h('label', { class: 'f' }, tx('Imię')), f.name, h('label', { class: 'f' }, tx('Lubi')), f.likes,
+      h('label', { class: 'f' }, tx('Nie lubi / nie je')), f.dislikes, h('label', { class: 'f' }, tx('Dieta, alergie')), f.diet) };
+  });
+  const shared = h('textarea', { style: 'min-height:70px', value: a.shared, placeholder: tx('np. w tygodniu max 30 minut, mamy airfryer i blender, gotujemy na 2 porcje z resztą na lunch') });
+  const factList = h('div');
+  const drawFacts = () => {
+    factList.innerHTML = '';
+    if (!S.asst.facts.length) { factList.append(h('p', { class: 'hint-small' }, tx('Asystent jeszcze niczego nie zapamiętał. Zapamiętuje trwałe rzeczy, które mu powiesz w rozmowie.'))); return; }
+    factList.append(h('ul', { class: 'ing' }, S.asst.facts.map(f => h('li', null, h('span', { class: 'grow' }, (f.who ? f.who + ': ' : '') + f.text),
+      h('button', { class: 'iconbtn', style: 'font-size:14px', title: tx('Usuń'), onclick: () => { S.asst.facts = S.asst.facts.filter(x => x.id !== f.id); persistAsst('prof'); drawFacts(); } }, '✕')))));
+  };
+  drawFacts();
+  const newFact = h('input', { type: 'text', placeholder: tx('Dodaj coś do zapamiętania…') });
+  const body = h('div', { class: 'wrap' }, topBanners(),
+    h('p', { class: 'hint-small' }, tx('Profil i pamięć asystenta są zapisane na tym urządzeniu i trafiają do pliku synchronizacji (nie do pliku dla mamy). Rozmowy zostają tylko tutaj.')),
+    fields.map(x => x.el),
+    h('div', { class: 'panel' }, h('h2', { style: 'font-size:18px' }, tx('Wspólne')), h('label', { class: 'f' }, tx('Sprzęt, czas na gotowanie, budżet, inne')), shared),
+    h('div', { class: 'panel' }, h('h2', { style: 'font-size:18px' }, '🧠 ' + tx('Zapamiętane przez asystenta')), factList,
+      h('div', { class: 'row', style: 'margin-top:8px' }, newFact, h('button', { class: 'btn', onclick: () => { const t = newFact.value.trim(); if (!t) return; S.asst.facts.push({ id: uid(), text: t, who: '', at: Date.now() }); newFact.value = ''; persistAsst('prof'); drawFacts(); } }, tx('Dodaj')))),
+    h('div', { class: 'row', style: 'margin-top:14px;justify-content:space-between' },
+      h('button', { class: 'btn danger', onclick: async () => {
+        const ok = await modal(tx('Wyczyścić rozmowę?'), h('p', null, tx('Historia czatu zostanie usunięta. Profil i zapamiętane fakty zostają.')), [{ label: tx('Anuluj'), value: false }, { label: tx('Wyczyść'), value: true, danger: true }]);
+        if (ok) { S.chat = []; await persistAsst('chat'); toast(tx('Wyczyszczono')); }
+      } }, tx('Wyczyść rozmowę')),
+      h('button', { class: 'btn primary', onclick: save }, tx('Zapisz'))));
+  app.append(head, body);
+  async function save() {
+    S.asst.people = fields.map(x => ({ name: x.f.name.value.trim(), likes: x.f.likes.value.trim(), dislikes: x.f.dislikes.value.trim(), diet: x.f.diet.value.trim() }));
+    S.asst.shared = shared.value.trim(); S.asst.updatedAt = Date.now();
+    await persistAsst('prof'); toast(tx('Zapisano')); goto('assistant');
+  }
+}
+Object.assign(UI_EN, {
+  'Nie udało się zapisać pamięci asystenta': 'Could not save the assistant memory',
+  'Nie udało się odczytać odpowiedzi. Spróbuj zapytać jeszcze raz.': 'Could not read the answer. Please ask again.',
+  'Coś poszło nie tak. Spróbuj ponownie.': 'Something went wrong. Please try again.',
+  'Asystent AI': 'AI assistant', 'Zapisano w „Do wypróbowania”': 'Saved to “To try”',
+  'Asystent kulinarny': 'Cooking assistant', 'Profil i pamięć': 'Profile & memory', 'Co dziś gotujemy?': 'What are we cooking today?',
+  'Znam Wasze zapisane przepisy': 'I know your saved recipes',
+  'i to, co lubicie. Mogę polecić coś z Waszej bazy albo zaproponować nowy przepis na podstawie opisu lub składników.': 'and what you both like. I can suggest something from your collection or come up with a new recipe from a description or ingredients.',
+  'Wskazówka: uzupełnij profil, a propozycje będą trafniejsze.': 'Tip: fill in your profile for better suggestions.', 'Uzupełnij profil': 'Fill in profile',
+  'Co ugotować dziś na obiad?': 'What should we cook for dinner today?', 'Mam kurczaka, paprykę i ryż. Co z tego zrobić?': 'I have chicken, peppers and rice. What can I make?',
+  'Coś nowego i szybkiego, do 30 minut': 'Something new and quick, under 30 minutes', 'Co z „Do wypróbowania” warto zrobić w weekend?': 'Which “To try” recipe is worth making this weekend?',
+  'Zapamiętano: ': 'Remembered: ', 'Cofnięto: ': 'Undone: ', 'Cofnij': 'Undo', 'Składniki': 'Ingredients', 'Zwiń': 'Hide', 'Pokaż przepis': 'Show recipe',
+  'nowy przepis od AI': 'new recipe by AI', 'Zapisano · otwórz': 'Saved · open', 'Zapisz do przepisów': 'Save to recipes',
+  'Myślę… to może potrwać do minuty.': 'Thinking… this can take up to a minute.', 'Stop': 'Stop',
+  'Napisz, na co macie ochotę albo jakie macie składniki…': 'Say what you feel like or which ingredients you have…', 'Wyślij': 'Send',
+  'Twoje imię': 'Your name', 'Imię partnera': 'Partner’s name', 'np. kuchnia azjatycka, ostre, makarony, pieczone warzywa': 'e.g. Asian food, spicy, pasta, roasted vegetables',
+  'np. kolendra, grzyby, wątróbka': 'e.g. coriander, mushrooms, liver', 'np. bez laktozy, alergia na orzechy, mało mięsa': 'e.g. lactose-free, nut allergy, little meat',
+  'Osoba 1': 'Person 1', 'Osoba 2': 'Person 2', 'Imię': 'Name', 'Lubi': 'Likes', 'Nie lubi / nie je': 'Dislikes / doesn’t eat', 'Dieta, alergie': 'Diet, allergies',
+  'np. w tygodniu max 30 minut, mamy airfryer i blender, gotujemy na 2 porcje z resztą na lunch': 'e.g. max 30 minutes on weekdays, we have an air fryer and a blender, we cook 2 servings plus leftovers for lunch',
+  'Asystent jeszcze niczego nie zapamiętał. Zapamiętuje trwałe rzeczy, które mu powiesz w rozmowie.': 'The assistant has not remembered anything yet. It remembers lasting things you tell it in chat.',
+  'Dodaj coś do zapamiętania…': 'Add something to remember…',
+  'Profil, pamięć i rozmowy z asystentem są prywatne: widzisz je tylko Ty, także gdy udostępnisz aplikację komuś innemu.': 'Profile, memory and assistant chats are private: only you see them, even if you share the app with someone else.',
+  'Wspólne': 'Shared', 'Sprzęt, czas na gotowanie, budżet, inne': 'Equipment, cooking time, budget, other', 'Zapamiętane przez asystenta': 'Remembered by the assistant',
+  'Wyczyścić rozmowę?': 'Clear the chat?', 'Historia czatu zostanie usunięta. Profil i zapamiętane fakty zostają.': 'The chat history will be deleted. Profile and remembered facts stay.',
+  'Wyczyść': 'Clear', 'Wyczyszczono': 'Cleared', 'Wyczyść rozmowę': 'Clear chat',
+  '✦ Asystent: co dziś ugotować?': '✦ Assistant: what to cook today?', '✦ przepis AI': '✦ AI recipe',
+  'Ten przepis wymyśliło AI (asystent). Nie pochodzi ze sprawdzonego źródła, więc sprawdź ilości i czasy.': 'This recipe was created by AI (the assistant). It is not from a tested source, so check quantities and times.',
+});
+
+// ---- export ----
+async function exportFile(data, filename) {
+  if (S.downloads) {
+    try { await S.downloads.save({ filename, data }); return; }
+    catch (e) { if (e.code === 'declined') return; if (e.code === 'rate_limited') { toast(tx('Poczekaj chwilę i spróbuj ponownie')); return; } }
+  }
+  if (typeof data === 'string') {
+    const ta = h('textarea', { style: 'min-height:260px', value: data, readonly: true });
+    const v = await modal(tx('Skopiuj zawartość'), h('div', null, h('p', { class: 'hint-small' }, tx('Pobieranie plików nie jest dostępne w tym widoku. Skopiuj tekst i wklej do pliku.')), ta), [{ label: tx('Zamknij'), value: null }, { label: tx('Kopiuj'), value: 'copy', primary: true }]);
+    if (v === 'copy') { try { await navigator.clipboard.writeText(data); toast(tx('Skopiowano')); } catch (e) { ta.select(); toast(tx('Zaznacz i skopiuj ręcznie')); } }
+  } else toast(tx('Pobieranie plików nie jest dostępne w tym widoku'));
+}
+function exportJSON(list, name) {
+  exportFile(JSON.stringify({ app: 'cooking-assistant', version: 1, exportedAt: new Date().toISOString(), recipes: list.map(clean) }, null, 2), name + '.json');
+}
+function toMarkdown(r, lang, factor) {
+  const t = trOf(r, lang), lab = L[lang] || L.pl, isOrig = lang === r.lang;
+  const lines = ['# ' + titleIn(r, lang), ''];
+  if (r.aiGenerated) lines.push('_✦ ' + lab.aiRecipe + '_', '');
+  if (t) lines.push('_' + lab.tr + ' ' + (LANGS[r.lang] || r.lang) + '_', '');
+  const meta = [r.category, r.servings ? (r.servings * factor) + ' ' + lab.servings : '', r.prepTime && lab.prep + ': ' + r.prepTime, r.cookTime && lab.cook + ': ' + r.cookTime].filter(Boolean);
+  if (meta.length) lines.push(meta.join(' · '), '');
+  if (r.tags && r.tags.length) lines.push('Tagi: ' + r.tags.join(', '), '');
+  lines.push('## ' + lab.ing, '');
+  r.ingredients.forEach((ing, i) => {
+    const name = (t && t.items && t.items[i]) || ing.item;
+    if (ing.header) { lines.push('', '**' + name + '**'); return; }
+    const d = displayQty(ing, factor, S.settings.units, lang, isOrig);
+    lines.push('- ' + ((d.approx ? '≈ ' : '') + d.q + ' ' + name).trim());
+  });
+  const steps = (t && t.steps) || r.steps;
+  lines.push('', '## ' + lab.steps, '');
+  steps.forEach((s, i) => lines.push((i + 1) + '. ' + (S.settings.units === 'metric' ? convertTemps(s) : s)));
+  const hints = (r.ai && r.ai.hints) || [];
+  if (hints.length) { lines.push('', '> **✦ ' + lab.ai + '** (' + lab.aiSub + ')'); hints.forEach((x, i) => lines.push('> - ' + ((t && t.hints && t.hints[i]) || x.text))); }
+  if (r.notes) lines.push('', '## ' + lab.notes, '', r.notes);
+  if (r.source && (r.source.url || r.source.name)) lines.push('', lab.source + ': ' + [r.source.name, r.source.url].filter(Boolean).join(' – '));
+  return lines.join('\n');
+}
+async function exportMenu(r, lang, factor) {
+  const v = await modal(tx('Eksport przepisu'), h('p', { class: 'hint-small' }, tx('Wersja: ') + (LANGS[lang] || lang) + (factor !== 1 ? tx(', przeliczona na ') + S.servings[r.id] + tx(' porcji') : '') + tx(', jednostki: ') + (S.settings.units === 'metric' ? 'g / ml' : tx('oryginalne')) + '.'),
+    [{ label: tx('Anuluj'), value: null }, { label: tx('JSON (kopia)'), value: 'json' }, { label: tx('Markdown / tekst'), value: 'md' }, { label: 'PDF A5', value: 'pdf', primary: true }]);
+  if (v === 'json') exportJSON([r], slug(r.title));
+  if (v === 'md') exportFile(toMarkdown(r, lang, factor), slug(titleIn(r, lang)) + '.md');
+  if (v === 'pdf') pdfFlow([{ r, lang, factor }], slug(titleIn(r, lang)));
+}
+
+// ---- PDF A5 ----
+const A5 = { w: 559, h: 794 };
+function a5Blocks(item) {
+  const { r, lang, factor } = item;
+  const t = trOf(r, lang), lab = L[lang] || L.pl, isOrig = lang === r.lang, mode = S.settings.units;
+  const blocks = [];
+  const meta = [r.category, r.servings ? fmtNum(r.servings * factor, lang) + ' ' + lab.servings : '', r.prepTime && lab.prep + ': ' + r.prepTime, r.cookTime && lab.cook + ': ' + r.cookTime].filter(Boolean).join('  ·  ');
+  blocks.push(h('div', null, r.aiGenerated ? h('div', { class: 'trn' }, '✦ ' + lab.aiRecipe) : null, t ? h('div', { class: 'trn' }, '✦ ' + lab.tr + ' ' + (LANGS[r.lang] || r.lang)) : null, h('h1', null, titleIn(r, lang)), meta ? h('div', { class: 'm' }, meta) : null));
+  let first = true;
+  r.ingredients.forEach((ing, i) => {
+    const name = (t && t.items && t.items[i]) || ing.item;
+    let el;
+    if (ing.header) el = h('div', { class: 'ih' }, name);
+    else { const d = displayQty(ing, factor, mode, lang, isOrig); el = h('div', { class: 'i' }, h('span', { class: 'q' }, (d.approx ? '≈ ' : '') + d.q), h('span', null, name)); }
+    blocks.push(first ? h('div', null, h('h4', null, lab.ing), el) : el); first = false;
+  });
+  const steps = (t && t.steps) || r.steps;
+  steps.forEach((s, i) => {
+    const el = h('div', { class: 's' }, h('span', { class: 'n' }, (i + 1) + '.'), h('span', null, mode === 'metric' ? convertTemps(s) : s));
+    blocks.push(i === 0 ? h('div', null, h('h4', null, lab.steps), el) : el);
+  });
+  const hints = (r.ai && r.ai.hints) || [];
+  if (hints.length) blocks.push(h('div', { class: 'aib' }, h('b', null, '✦ ' + lab.ai), ' (' + lab.aiSub + ')', hints.map((x, i) => h('div', { style: 'margin-top:3px' }, '• ' + ((t && t.hints && t.hints[i]) || x.text)))));
+  if (r.notes) blocks.push(h('div', null, h('h4', null, lab.notes), h('div', { class: 'nt' }, r.notes)));
+  if (r.source && (r.source.name || r.source.url)) blocks.push(h('div', { class: 'm', style: 'margin-top:10px' }, lab.source + ': ' + [r.source.name, r.source.url].filter(Boolean).join(' – ')));
+  return { blocks, title: titleIn(r, lang), hasAi: hints.length > 0, lab };
+}
+function paginate(items, stage) {
+  const pages = [];
+  const mm = A5.w / 148;
+  const inner = Math.round((S.settings.binder ? 20 : 12) * mm), outer = Math.round(12 * mm), top = Math.round(13 * mm), bottom = Math.round(16 * mm);
+  for (const it of items) {
+    const { blocks, title, hasAi, lab } = a5Blocks(it);
+    const recPages = [];
+    const newPage = () => {
+      const pg = h('div', { class: 'a5' + (S.settings.compact ? ' compact' : '') });
+      const body = h('div', { class: 'body', style: `top:${top}px;bottom:${bottom}px;left:${inner}px;right:${outer}px` });
+      const foot = h('div', { class: 'foot', style: `left:${inner}px;right:${outer}px` });
+      pg.append(body, foot); stage.append(pg); recPages.push({ pg, body, foot }); return body;
+    };
+    let body = newPage();
+    for (const b of blocks) {
+      body.append(b);
+      if (body.scrollHeight > body.clientHeight + 1 && body.children.length > 1) { b.remove(); body = newPage(); body.append(b); }
+    }
+    recPages.forEach((p, i) => {
+      p.foot.append(h('span', null, title + (hasAi ? '  ·  ' + lab.aiLegend : '')), h('span', null, recPages.length > 1 ? (i + 1) + '/' + recPages.length : ''));
+    });
+    pages.push(...recPages.map(p => p.pg));
+  }
+  return pages;
+}
+async function pdfFlow(items, name) {
+  const stage = document.getElementById('a5stage');
+  const opts = h('div', null,
+    h('label', { class: 'row', style: 'margin:6px 0' }, h('input', { type: 'checkbox', checked: S.settings.binder, onchange: e => { S.settings.binder = e.target.checked; saveSettings(); } }), tx('Szerszy lewy margines na dziurki (segregator)')),
+    h('label', { class: 'row', style: 'margin:6px 0' }, h('input', { type: 'checkbox', checked: S.settings.compact, onchange: e => { S.settings.compact = e.target.checked; saveSettings(); } }), tx('Kompaktowo (mniejsza czcionka, więcej na stronie)')),
+    h('p', { class: 'hint-small' }, items.length + tx(' przepis(y). Każdy przepis zaczyna się na nowej stronie. Jednostki: ') + (S.settings.units === 'metric' ? 'g / ml' : tx('oryginalne')) + '.'));
+  const go = await modal('PDF A5', opts, [{ label: tx('Anuluj'), value: null }, { label: tx('Przygotuj podgląd'), value: true, primary: true }]);
+  if (!go) return;
+  const wait = h('div', { class: 'modal-bg' }, h('div', { class: 'modal' }, h('span', { class: 'spinner' }), tx(' Składam strony A5…')));
+  document.body.append(wait);
+  try {
+    await Promise.all([loadScript(CDN.h2c), loadScript(CDN.jspdf)]);
+    try { await document.fonts.ready; } catch (e) { }
+    stage.innerHTML = '';
+    window.scrollTo(0, 0);
+    const pages = paginate(items, stage);
+    const canvases = [];
+    for (let i = 0; i < pages.length; i++) {
+      wait.querySelector('.modal').lastChild.textContent = tx(' Renderuję stronę ') + (i + 1) + tx(' z ') + pages.length + '…';
+      canvases.push(await window.html2canvas(pages[i], { scale: 2.5, backgroundColor: '#ffffff', logging: false }));
+    }
+    stage.innerHTML = '';
+    const pdf = new window.jspdf.jsPDF({ unit: 'mm', format: 'a5', orientation: 'portrait', compress: true });
+    canvases.forEach((c, i) => { if (i) pdf.addPage('a5', 'portrait'); pdf.addImage(c.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, 148, 210); });
+    const blob = pdf.output('blob');
+    wait.remove();
+    const multi = items.length === 1 && pages.length > 1;
+    const prev = h('div', null,
+      h('p', null, pages.length + ' ' + (pages.length === 1 ? tx('strona') : tx('stron(y)')) + ' A5.' + (multi ? tx(' Przepis nie zmieścił się na jednej stronie') + (S.settings.compact ? '.' : tx(': możesz spróbować trybu kompaktowego.')) : '')),
+      h('div', { class: 'pdfprev' }, canvases.map(c => h('img', { src: c.toDataURL('image/jpeg', 0.7) }))),
+      h('p', { class: 'hint-small' }, tx('Drukowanie: wybierz papier A5 i skalę 100%. Na A4 ustaw „2 strony na arkusz” i przetnij kartkę na pół.')));
+    const v = await modal(tx('Podgląd PDF'), prev, [{ label: tx('Zamknij'), value: null }, { label: tx('Zapisz PDF'), value: true, primary: true }]);
+    if (v) exportFile(blob, name + '.pdf');
+  } catch (e) { wait.remove(); stage.innerHTML = ''; toast(tx('Nie udało się utworzyć PDF: ') + e.message, 4000); }
+}
+
+Object.assign(UI_EN, {"Dodaj klucz API w Ustawieniach, żeby używać AI.": "Add an API key in Settings to use AI.", "Brak połączenia z internetem albo z API.": "No connection to the internet or the API.", "Klucz API jest nieprawidłowy albo został usunięty.": "The API key is invalid or has been deleted.", "Brak środków na koncie API (sprawdź Billing w Anthropic Console).": "No credit on the API account (check Billing in the Anthropic Console).", "Odpowiedź AI była za długa. Spróbuj z krótszym tekstem.": "The AI answer was too long. Try with shorter text.", "Nowe: ": "New: ", "zaktualizowane: ": "updated: ", "usunięte: ": "deleted: ", "Ustawienia": "Settings", " (tańszy, szybszy)": " (cheaper, faster)", " (lepsza jakość)": " (better quality)", "To nie jest plik z przepisami": "This is not a recipes file", "AI (klucz API Anthropic)": "AI (Anthropic API key)", "Klucz jest zapisany tylko w tej przeglądarce na tym urządzeniu. Nie trafia do kodu ani do pliku synchronizacji. Bez klucza aplikacja działa, ale bez funkcji AI.": "The key is stored only in this browser on this device. It is never put in the code or the sync file. Without a key the app works, just without AI features.", "Klucz API": "API key", "Model": "Model", "Najpierw wpisz klucz.": "Enter a key first.", "Sprawdzam…": "Checking…", "Klucz działa.": "The key works.", "Dziwna odpowiedź, ale połączenie działa.": "Unexpected answer, but the connection works.", "Sprawdź klucz": "Test key", "Usuń klucz": "Remove key", "Klucz usunięty z tego urządzenia": "Key removed from this device", "Synchronizacja plikiem": "File sync", "Przepisy są zapisane na każdym urządzeniu osobno. Żeby przenieść zmiany: na jednym urządzeniu zapisz plik, prześlij go (np. przez Google Drive, maila, Messengera), a na drugim wczytaj. Wczytanie scala: dodaje nowe, aktualizuje nowsze wersje i usuwa przepisy usunięte na drugim urządzeniu. Niczego nie nadpisuje starszą wersją.": "Recipes are stored on each device separately. To move changes: save a file on one device, send it (e.g. Google Drive, email, Messenger) and load it on the other. Loading merges: it adds new recipes, updates newer versions and removes recipes deleted on the other device. It never overwrites with an older version.", "Zapisz plik synchronizacji": "Save sync file", "Wczytaj i scal plik": "Load and merge file", "Dla mamy: plik tylko z przepisami (bez profilu asystenta). Jej kopia jest osobna, więc nic, co zrobi u siebie, nie zmieni Twoich przepisów.": "For mum: a file with recipes only (no assistant profile). Her copy is separate, so nothing she does can change your recipes.", "Plik tylko z przepisami": "Recipes-only file", "Dane na tym urządzeniu": "Data on this device", "przepisów": "recipes", "przeglądarka nie usunie danych automatycznie": "the browser will not clear the data automatically", "przeglądarka może usunąć dane przy braku miejsca: rób czasem plik synchronizacji jako kopię": "the browser may clear data when storage is low: save a sync file now and then as a backup", "AI wymaga klucza API w Ustawieniach.": "AI needs an API key in Settings.", "Otwórz Ustawienia": "Open Settings", "Ustawienia i synchronizacja": "Settings & sync", "Bez klucza API rozpoznawanie przepisów z plików, zdjęć i tekstu nie działa. Działają: zapisana strona .html, plik synchronizacji .json i dodawanie ręczne. Klucz dodasz w Ustawieniach.": "Without an API key, reading recipes from files, photos and text does not work. Still working: a saved .html page, a .json sync file and manual entry. Add a key in Settings.", "aplikacja nie może sama otworzyć cudzej strony (przeglądarka to blokuje). Otwórz przepis, zaznacz tekst (składniki i kroki), skopiuj i wklej poniżej. Link wklej w pierwsze pole, żeby zapisał się jako źródło.": "the app cannot open other websites itself (the browser blocks it). Open the recipe, select the text (ingredients and steps), copy and paste it below. Put the link in the first field so it is saved as the source.", "Profil i pamięć asystenta są zapisane na tym urządzeniu i trafiają do pliku synchronizacji (nie do pliku dla mamy). Rozmowy zostają tylko tutaj.": "The assistant profile and memory are stored on this device and included in the sync file (not in the file for mum). Chats stay on this device only."});
+
+render();
+initStore();
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>
