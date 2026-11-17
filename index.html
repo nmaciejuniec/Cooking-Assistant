@@ -129,6 +129,23 @@ label.f{display:block;font-size:13px;font-weight:600;color:var(--muted);margin:1
 .heroacts{position:absolute;right:10px;bottom:10px;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
 .noimg{margin-top:14px;border:2px dashed var(--line);border-radius:var(--radius);padding:12px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
 .a5 .pimg{height:130px;border-radius:6px;background-size:cover;background-position:center;margin-bottom:10px}
+.rhead{display:grid;gap:16px;margin-top:14px}
+.rhead .rimg{order:-1}
+.rhead .hero,.rhead .noimg{margin-top:0}
+.rinfo .rtitle{margin-top:0}
+.facts{display:flex;gap:6px;margin:12px 0;padding:10px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.fact{flex:1;text-align:center;min-width:0}
+.fact .ic{font-size:22px;line-height:1.2;color:var(--muted)}
+.fact .lb{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:700;margin-top:2px}
+.fact .vl{font-weight:600}
+@media (min-width:700px){
+  .rhead{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:stretch}
+  .rhead.single{grid-template-columns:1fr}
+  .rhead .rimg{order:0;display:flex}
+  .rhead .hero{flex:1;display:flex;min-height:260px}
+  .rhead .hero img{height:100%;max-height:none;min-height:260px;flex:1}
+  .rhead .noimg{flex:1;flex-direction:column;justify-content:center;text-align:center}
+}
 .empty{text-align:center;color:var(--muted);padding:50px 10px}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--surface)}
 .seg button{border:none;background:none;padding:6px 12px;cursor:pointer;font-size:14px}
@@ -369,7 +386,23 @@ function parseIngredientLine(line) {
   }
   s = s.replace(/^(of|af)\s+/i, '');
   out.item = s.trim();
+  if (out.qty == null && !out.unit) { const tq = splitTrailingQty(out.item); if (tq) return tq; }
   return out;
+}
+// Amounts written after the name ("mąka pszenna 120 g", "jajka 2 sztuki - 110 g").
+const TRAIL_QTY = /(\d+\s+\d+\/\d+|\d+\/\d+|\d+(?:[.,]\d+)?\s*[½¼¾⅓⅔]?|[½¼¾⅓⅔])\s*(kg|dag|dkg|g|gr|ml|l|dl|cl|łyżeczk[aięi]|łyżeczek|łyżk[aięi]|łyżek|szklank[aięi]|szklanek|sztuk[ai]?|szt\.?|ząbki|ząbek|ząbków|cups?|tbsp|tsp|spsk|tsk|stk)(?=$|[\s,.;)\-–—])/gi;
+function splitTrailingQty(text) {
+  const found = []; const re = new RegExp(TRAIL_QTY.source, 'gi'); let m;
+  while ((m = re.exec(text))) found.push({ i: m.index, len: m[0].length, num: m[1], unit: m[2] });
+  if (!found.length) return null;
+  const isMetric = (u) => /^(kg|dag|dkg|g|gr|ml|l|dl|cl)$/i.test(u);
+  const isCount = (u) => /^(sztuk|szt|stk|ząb)/i.test(u);
+  const pick = found.find(f => isCount(f.unit)) || found.find(f => isMetric(f.unit)) || found[found.length - 1];
+  const p = parseIngredientLine(pick.num + ' ' + pick.unit);
+  if (!p || p.qty == null) return null;
+  let name = (text.slice(0, pick.i) + ' ' + text.slice(pick.i + pick.len)).replace(/\s+/g, ' ').trim();
+  name = name.replace(/(\s*[-–—,:]\s*)+$/g, '').replace(/\s+(do|około|ok\.?|ca\.?|up to|til)$/i, '').replace(/(\s*[-–—,:]\s*)+$/g, '').replace(/^\s*[-–—,:]\s*/, '').trim();
+  return { qty: p.qty, qtyMax: null, unit: p.unit, unitRaw: p.unitRaw, item: name || text.trim() };
 }
 function round3(x) { return Math.round(x * 1000) / 1000; }
 
@@ -887,6 +920,11 @@ async function initStore() {
   S.downloads = fileDownloads;
   refreshAi();
   await loadImages();
+  let fixed = 0;
+  S.recipes.forEach(r => (r.ingredients || []).forEach((ing, k) => {
+    if (!ing.header && ing.qty == null && !ing.unit && ing.item) { const tq = splitTrailingQty(ing.item); if (tq) { r.ingredients[k] = tq; fixed++; } }
+  }));
+  if (fixed) persistLocal();
   S.loaded = true; render();
   try { if (navigator.storage && navigator.storage.persist) S.persisted = await navigator.storage.persist(); } catch (e) { }
 }
@@ -1085,7 +1123,7 @@ Zasady:
 - "category": wybierz jedną z: ${CAT_LIST().join(', ')}. Jeśli nie pasuje żadna, "Inne".
 - "subcategory": krótka podkategoria w ramach kategorii (np. dla Ciasta i wypieki: Serniki, Pierniki). Najlepiej jedna z istniejących: ${CAT_LIST().map(c => c + ': ' + (subSuggestions(c).join(', ') || '–')).join(' | ')}. Pusta, jeśli nie wiadomo.
 - "tags": 0-5 krótkich tagów ${S.settings.ui === 'en' ? 'in English (e.g. vegetarian, quick, gluten-free)' : 'po polsku (np. wegetariańskie, szybkie, bez glutenu)'} tylko jeśli wynikają z treści.
-- "unit": jednostka dokładnie jak w źródle (np. "łyżki", "dl", "cup", "g"), bez liczby; "" gdy brak. Ułamki jako liczby dziesiętne (1/2 -> 0.5). Zakres "2-3" -> qty 2, qtyMax 3.
+- "unit": jednostka dokładnie jak w źródle (np. "łyżki", "dl", "cup", "g"), bez liczby; "" gdy brak. Ilość i jednostkę wyciągnij także wtedy, gdy stoją na końcu (np. "mąka pszenna 120 g" -> qty 120, unit "g", item "mąka pszenna"). Ułamki jako liczby dziesiętne (1/2 -> 0.5). Zakres "2-3" -> qty 2, qtyMax 3.
 - "header": true dla nagłówków grup składników (np. "Ciasto:"), wtedy nazwa w "item".
 - "steps": kolejne kroki bez numeracji.
 - "hints": 0-4 krótkie wskazówki, które pomogą uzupełnić ISTOTNE braki (np. temperatura piekarnika, czas pieczenia, liczba porcji, brakujące ilości). Pisz w języku przepisu, ostrożnie ("zwykle", "około"). Pusta lista, jeśli niczego ważnego nie brakuje. Te wskazówki zostaną wyraźnie oznaczone jako dopisek AI.
@@ -1097,6 +1135,7 @@ function normalizeParsed(x, source) {
     if (!i || typeof i !== 'object') return null;
     if (i.header) return { header: true, item: String(i.item || '').trim() };
     const uk = unitKey(String(i.unit || '').split(/\s+/)[0]) || (String(i.unit || '').toLowerCase().replace(/\./g, '') === 'fl oz' ? 'floz' : '');
+    if (typeof i.qty !== 'number' && !String(i.unit || '').trim()) { const tq = splitTrailingQty(String(i.item || '').trim()); if (tq) return tq; }
     return {
       qty: typeof i.qty === 'number' ? round3(i.qty) : null,
       qtyMax: typeof i.qtyMax === 'number' ? round3(i.qtyMax) : null,
@@ -1400,6 +1439,7 @@ function renderRecipe() {
   const imgInput = h('input', { type: 'file', accept: 'image/*', style: 'display:none', onchange: async () => { const f = imgInput.files && imgInput.files[0]; if (!f) return; try { await setImage(r.id, await fileToImage(f), 'photo'); render(); } catch (e) { toast(e.message); } } });
   const drawBtn = () => { const b = h('button', { class: 'btn small ai' }, '✦ ' + tx('Grafika AI')); b.onclick = async () => { if (!aiReady()) { needKey(); return; } b.disabled = true; b.innerHTML = ''; b.append(h('span', { class: 'spinner' }), ' ' + tx('Rysuję…')); try { await setImage(r.id, await aiDrawImage(r), 'ai'); render(); } catch (e) { toast(e.message, 4000); render(); } }; return b; };
   const webBtn = () => (r.source && r.source.url && canFetchPages()) ? h('button', { class: 'btn small', onclick: async (e) => { e.target.disabled = true; try { const html = await fetchPage(r.source.url); const pic = pageImage(html, r.source.url); if (!pic) throw new Error(tx('Na stronie nie ma zdjęcia przepisu')); await setImage(r.id, await fetchImage(pic), 'web'); render(); } catch (er) { toast(er.message === 'image' ? tx('Nie udało się pobrać zdjęcia') : er.message, 4000); e.target.disabled = false; } } }, '🌐 ' + tx('Zdjęcie ze strony')) : null;
+  const headStart = body.children.length;
   if (S.imgs[r.id]) {
     body.append(h('div', { class: 'hero' + (String(S.imgs[r.id]).startsWith('<svg') ? ' svg' : '') }, h('img', { src: imgSrc(r.id), alt: '' }),
       r.image && r.image.kind === 'ai' ? h('span', { class: 'herotag' }, '✦ ' + tx('grafika AI')) : null,
@@ -1413,12 +1453,23 @@ function renderRecipe() {
     Object.entries(STATUS).map(([k, st]) => h('button', { class: 'btn small statbtn' + (r.status === k ? ' on' : ''), title: r.status === k ? tx('Kliknij, aby usunąć oznaczenie') : '', onclick: () => setStatus(r, r.status === k ? '' : k) }, st.icon + ' ' + tx(st.label) + (r.status === k ? '  ✕' : ''))),
     Object.entries(FLAGS).map(([k, st]) => { const on = (r.flags || []).includes(k); return h('button', { class: 'btn small statbtn' + (on ? ' on' : ''), onclick: () => toggleFlag(r, k) }, st.icon + ' ' + tx(st.label) + (on ? '  ✕' : '')); })));
   else if (r.status || (r.flags || []).length) body.append(h('div', null, r.status ? h('span', { class: 'stattag' }, STATUS[r.status].icon + ' ' + tx(STATUS[r.status].label)) : null, (r.flags || []).filter(k => FLAGS[k]).map(k => h('span', { class: 'stattag flag' }, FLAGS[k].icon + ' ' + tx(FLAGS[k].label)))));
-  const times = [r.prepTime ? lab.prep + ': ' + r.prepTime : '', r.cookTime ? lab.cook + ': ' + r.cookTime : ''].filter(Boolean).join(' · ');
-  body.append(h('div', { class: 'meta' }, [catLabel(r), times].filter(Boolean).join(' · ')),
+  const fact = (ic, label, val) => val ? h('div', { class: 'fact' }, h('div', { class: 'ic' }, ic), h('div', { class: 'lb' }, label), h('div', { class: 'vl' }, val)) : null;
+  const facts = (r.prepTime || r.cookTime || r.servings) ? h('div', { class: 'facts' },
+    fact('⏱', lab.prep, r.prepTime), fact('♨', lab.cook, r.cookTime), fact('🍴', lab.servings, r.servings ? String(curServ) : '')) : null;
+  body.append(h('div', { class: 'meta' }, catLabel(r)),
     h('div', null, (r.tags || []).map(x => h('span', { class: 'tag' }, x))));
   if (r.source && (r.source.url || r.source.name)) {
     body.append(h('div', { class: 'meta', style: 'margin-top:4px' }, lab.source + ': ',
       r.source.url ? h('a', { href: r.source.url, target: '_blank', rel: 'noopener' }, r.source.name || hostOf(r.source.url)) : r.source.name));
+  }
+  // header: details on the left, picture on the right (picture on top on narrow screens)
+  {
+    const els = Array.from(body.children).slice(headStart);
+    const imgEl = els.find(e => e.classList && (e.classList.contains('hero') || e.classList.contains('noimg')));
+    els.forEach(e => e.remove());
+    const info = h('div', { class: 'rinfo' }, els.filter(e => e !== imgEl && e !== imgInput));
+    if (facts) info.insertBefore(facts, info.querySelector('.meta') || null);
+    body.append(h('div', { class: 'rhead' + (imgEl ? '' : ' single') }, info, imgEl ? h('div', { class: 'rimg' }, imgEl) : null), imgInput);
   }
   // controls
   body.append(h('div', { class: 'ctrl' },
@@ -1554,7 +1605,7 @@ function editNotes(r, panel) {
 // Which ingredients a step mentions: compares word stems, so "cebulę" in a step matches "cebula".
 function stepIngredients(stepText, names) {
   const words = normalize(stepText).replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(Boolean);
-  const STOPW = new Set(['oraz', 'with', 'and', 'the', 'og', 'med', 'til', 'fresh', 'swiezy', 'swieze', 'drobno', 'posiekana', 'posiekany', 'chopped', 'large', 'small', 'duza', 'duze', 'mala', 'male', 'pszennej', 'pszenna']);
+  const STOPW = new Set(['lub', 'albo', 'czy', 'np', 'ewentualnie', 'mozna', 'pominac', 'wielkosci', 'sredniej', 'sredni', 'srednie', 'duzej', 'malej', 'zwykle', 'zwykly', 'jasna', 'jasnej', 'uniwersalna', 'opakowanie', 'sztuki', 'sztuk', 'gram', 'okolo', 'posmarowania', 'dla', 'bez', 'oraz', 'with', 'and', 'the', 'or', 'eller', 'og', 'med', 'til', 'for', 'fresh', 'swiezy', 'swieze', 'drobno', 'posiekana', 'posiekany', 'chopped', 'large', 'small', 'duza', 'duze', 'mala', 'male', 'pszennej', 'pszenna']);
   const hits = [];
   names.forEach((n, i) => {
     if (n == null) return;
