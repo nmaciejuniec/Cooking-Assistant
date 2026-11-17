@@ -10,6 +10,11 @@ on:
 permissions:
   contents: write
 
+# A newer push replaces a build that is still waiting.
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   android:
     runs-on: ubuntu-latest
@@ -81,6 +86,8 @@ jobs:
 
   release:
     needs: [android, mac]
+    # Publish whatever was built, so the APK is not held back if the Mac build fails.
+    if: ${{ !cancelled() && (needs.android.result == 'success' || needs.mac.result == 'success') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -98,6 +105,7 @@ jobs:
             - **CookingAssistant.dmg**: Mac (Apple Silicon and Intel)
 
             Installation steps are in the README.
+          fail_on_unmatched_files: false
           files: |
             out/android/CookingAssistant.apk
             out/mac/CookingAssistant.dmg
