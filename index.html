@@ -68,6 +68,16 @@ label.f{display:block;font-size:13px;font-weight:600;color:var(--muted);margin:1
 .composer{position:fixed;left:0;right:0;bottom:0;background:rgba(255,255,255,.97);border-top:1px solid var(--line);padding:10px 12px calc(10px + env(safe-area-inset-bottom));z-index:15}
 .composer .inner{max-width:860px;margin:0 auto;display:flex;gap:8px;align-items:flex-end}
 .composer textarea{min-height:44px;max-height:140px;resize:none}
+.cols{display:block}
+@media (min-width:1000px){
+  .wrap{max-width:1180px}
+  .actionbar .inner{max-width:1180px}
+  .composer .inner{max-width:1180px}
+  .cols{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:16px;align-items:start}
+  .cols>.panel{margin-top:12px}
+  .grid{grid-template-columns:repeat(auto-fill,minmax(280px,1fr))}
+  .bub{max-width:70%}
+}
 .empty{text-align:center;color:var(--muted);padding:50px 10px}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:#fff}
 .seg button{border:none;background:none;padding:6px 12px;cursor:pointer;font-size:14px}
@@ -950,7 +960,7 @@ function renderList() {
           S.canWrite ? h('button', { class: 'iconbtn', style: 'font-size:18px;padding:2px 6px;margin:-4px -6px 0 0;color:' + (r.status === 'fav' ? '#C8902A' : '#c9bfb4'), title: r.status === 'fav' ? tx('Usuń z ulubionych') : tx('Dodaj do ulubionych'), onclick: (e) => { e.stopPropagation(); setStatus(r, r.status === 'fav' ? '' : 'fav'); } }, r.status === 'fav' ? '★' : '☆')
             : (r.status === 'fav' ? h('span', { style: 'color:#C8902A' }, '★') : null)),
         r.status === 'try' ? h('div', null, h('span', { class: 'stattag' }, STATUS.try.icon + ' ' + tx(STATUS.try.label))) : null,
-        h('div', { class: 'meta' }, [tx(r.category), time, r.servings ? r.servings + tx(' porcji') : '', LANG_SHORT[r.lang] || r.lang].filter(Boolean).join(' · ')),
+        h('div', { class: 'meta' }, [tx(r.category), time, r.servings ? servText(r.servings) : '', LANG_SHORT[r.lang] || r.lang].filter(Boolean).join(' · ')),
         h('div', null, (r.tags || []).map(t => h('span', { class: 'tag' }, t)),
           r.ai && r.ai.hints && r.ai.hints.length ? h('span', { class: 'aitag' }, tx('✦ dopisek AI')) : null, r.aiGenerated ? h('span', { class: 'aitag' }, tx('✦ przepis AI')) : null));
     })));
@@ -1033,7 +1043,7 @@ function renderRecipe() {
   body.append(h('div', { class: 'ctrl' },
     r.servings ? h('div', { class: 'stepper' },
       h('button', { onclick: () => { S.servings[r.id] = Math.max(1, (curServ || 1) - 1); render(); } }, '−'),
-      h('span', null, curServ + ' ' + lab.servings),
+      h('span', null, servText(curServ, S.settings.ui)),
       h('button', { onclick: () => { S.servings[r.id] = (curServ || 1) + 1; render(); } }, '+'))
       : h('span', { class: 'hint-small' }, tx('Brak liczby porcji: dodaj ją w edycji, żeby skalować.')),
     h('div', { class: 'seg' }, [['orig', tx('Oryginalne')], ['metric', 'g / ml']].map(([k, l]) =>
@@ -1053,11 +1063,12 @@ function renderRecipe() {
       h('span', null, name, d.orig ? h('div', { class: 'orig' }, '(' + d.orig + (d.note ? ', ' + d.note : '') + ')') : null));
   })));
   if (anyApprox) ingPanel.append(h('p', { class: 'hint-small', style: 'margin-top:8px' }, tx('≈ przeliczenie objętości na gramy jest orientacyjne (zależy od produktu i sposobu nabierania).')));
-  body.append(ingPanel);
+  const cols = h('div', { class: 'cols' }, ingPanel);
+  body.append(cols);
 
   // steps
   const steps = (t && t.steps) || r.steps;
-  body.append(h('div', { class: 'panel' }, h('h2', { style: 'font-size:20px;margin-bottom:10px' }, lab.steps),
+  cols.append(h('div', { class: 'panel' }, h('h2', { style: 'font-size:20px;margin-bottom:10px' }, lab.steps),
     steps.length ? h('ol', { class: 'steps' }, steps.map(s => h('li', null, mode === 'metric' ? convertTemps(s) : s))) : h('p', { class: 'hint-small' }, tx('Brak kroków.'))));
 
   // AI hints
@@ -1104,6 +1115,17 @@ async function setStatus(r, st) {
   toast(st ? tx('Oznaczono: ') + tx(STATUS[st].label) : tx('Usunięto oznaczenie'));
   softRender();
 }
+function servWord(n, lang, acc) {
+  lang = lang || (S.settings.ui === 'en' ? 'en' : 'pl');
+  const x = Math.abs(Number(n)), int = Number.isInteger(x);
+  if (lang === 'en') return x === 1 ? 'serving' : 'servings';
+  if (lang === 'da') return x === 1 ? 'portion' : 'portioner';
+  if (!int) return 'porcji';
+  if (x === 1) return acc ? 'porcję' : 'porcja';
+  const d = x % 10, dd = x % 100;
+  return (d >= 2 && d <= 4 && !(dd >= 12 && dd <= 14)) ? 'porcje' : 'porcji';
+}
+function servText(n, lang, acc) { return fmtNum(n, lang === 'en' ? 'en' : 'pl') + ' ' + servWord(n, lang, acc); }
 function hostOf(u) { try { return new URL(u).hostname.replace(/^www\./, ''); } catch (e) { return u; } }
 function slug(s) { return normalize(s).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 50) || 'recipe'; }
 function editNotes(r, panel) {
@@ -1141,7 +1163,7 @@ async function cookMode(r) {
         const cb = h('input', { type: 'checkbox', checked: got.has(i), onchange: () => { got.has(i) ? got.delete(i) : got.add(i); draw(); } });
         body.append(h('label', { class: 'chk' + (got.has(i) ? ' done' : '') }, cb, h('span', null, h('b', null, (d.approx ? '≈ ' : '') + d.q), ' ', name)));
       });
-      if (factor !== 1) body.append(h('p', { class: 'hint-small' }, tx('Ilości przeliczone na ') + S.servings[r.id] + tx(' porcji.')));
+      if (factor !== 1) body.append(h('p', { class: 'hint-small' }, tx('Ilości przeliczone na ') + servText(S.servings[r.id], S.settings.ui, true) + '.'));
     } else {
       if (!steps.length) body.append(h('p', null, tx('Brak kroków.')));
       else {
@@ -1362,7 +1384,7 @@ function renderReview() {
     const simPending = S.pending.filter((x, j) => j !== i).map(x => ({ r: x, s: similarity(r, x) })).filter(x => x.s >= 0.55);
     body.append(h('div', { class: 'panel' },
       h('h3', { style: 'font-size:19px' }, r.title),
-      h('div', { class: 'meta' }, [tx(r.category), (LANGS[r.lang] || r.lang), r.ingredients.filter(x => !x.header).length + tx(' składników'), r.steps.length + tx(' kroków'), r.servings ? r.servings + tx(' porcji') : tx('brak porcji')].filter(Boolean).join(' · ')),
+      h('div', { class: 'meta' }, [tx(r.category), (LANGS[r.lang] || r.lang), r.ingredients.filter(x => !x.header).length + tx(' składników'), r.steps.length + tx(' kroków'), r.servings ? servText(r.servings) : tx('brak porcji')].filter(Boolean).join(' · ')),
       r.missing && r.missing.length ? h('div', { class: 'warn' }, tx('⚠ Braki: ') + r.missing.join('; ')) : null,
       r.ai && r.ai.hints && r.ai.hints.length ? h('div', null, h('span', { class: 'aitag' }, '✦ ' + r.ai.hints.length + tx(' dopisek/dopiski AI'))) : null,
       sim.length ? h('div', { class: 'dupe' }, tx('⧉ Podobny do: ') + sim.slice(0, 3).map(x => x.r.title + ' (' + Math.round(x.s * 100) + '%)').join(', ')) : null,
@@ -1574,7 +1596,7 @@ function renderAssistant() {
       b.append(h('div', { class: 'newr' },
         h('div', null, h('span', { class: 'aitag' }, '✦ ' + tx('nowy przepis od AI'))),
         h('div', { style: 'font-weight:700;margin-top:4px' }, n.title),
-        h('div', { class: 'meta' }, [n.servings ? n.servings + tx(' porcji') : '', [n.prepTime, n.cookTime].filter(Boolean).join(' + ')].filter(Boolean).join(' · ')),
+        h('div', { class: 'meta' }, [n.servings ? servText(n.servings) : '', [n.prepTime, n.cookTime].filter(Boolean).join(' + ')].filter(Boolean).join(' · ')),
         n.why ? h('div', { style: 'font-size:14px;margin-top:3px' }, n.why) : null,
         det,
         h('div', { class: 'row wrapflex', style: 'margin-top:8px' }, tog,
@@ -1688,7 +1710,7 @@ function toMarkdown(r, lang, factor) {
   const lines = ['# ' + titleIn(r, lang), ''];
   if (r.aiGenerated) lines.push('_✦ ' + lab.aiRecipe + '_', '');
   if (t) lines.push('_' + lab.tr + ' ' + (LANGS[r.lang] || r.lang) + '_', '');
-  const meta = [r.category, r.servings ? (r.servings * factor) + ' ' + lab.servings : '', r.prepTime && lab.prep + ': ' + r.prepTime, r.cookTime && lab.cook + ': ' + r.cookTime].filter(Boolean);
+  const meta = [r.category, r.servings ? servText(r.servings * factor, lang) : '', r.prepTime && lab.prep + ': ' + r.prepTime, r.cookTime && lab.cook + ': ' + r.cookTime].filter(Boolean);
   if (meta.length) lines.push(meta.join(' · '), '');
   if (r.tags && r.tags.length) lines.push('Tagi: ' + r.tags.join(', '), '');
   lines.push('## ' + lab.ing, '');
@@ -1708,7 +1730,7 @@ function toMarkdown(r, lang, factor) {
   return lines.join('\n');
 }
 async function exportMenu(r, lang, factor) {
-  const v = await modal(tx('Eksport przepisu'), h('p', { class: 'hint-small' }, tx('Wersja: ') + (LANGS[lang] || lang) + (factor !== 1 ? tx(', przeliczona na ') + S.servings[r.id] + tx(' porcji') : '') + tx(', jednostki: ') + (S.settings.units === 'metric' ? 'g / ml' : tx('oryginalne')) + '.'),
+  const v = await modal(tx('Eksport przepisu'), h('p', { class: 'hint-small' }, tx('Wersja: ') + (LANGS[lang] || lang) + (factor !== 1 ? tx(', przeliczona na ') + servText(S.servings[r.id], S.settings.ui, true) : '') + tx(', jednostki: ') + (S.settings.units === 'metric' ? 'g / ml' : tx('oryginalne')) + '.'),
     [{ label: tx('Anuluj'), value: null }, { label: tx('JSON (kopia)'), value: 'json' }, { label: tx('Markdown / tekst'), value: 'md' }, { label: 'PDF A5', value: 'pdf', primary: true }]);
   if (v === 'json') exportJSON([r], slug(r.title));
   if (v === 'md') exportFile(toMarkdown(r, lang, factor), slug(titleIn(r, lang)) + '.md');
@@ -1721,7 +1743,7 @@ function a5Blocks(item) {
   const { r, lang, factor } = item;
   const t = trOf(r, lang), lab = L[lang] || L.pl, isOrig = lang === r.lang, mode = S.settings.units;
   const blocks = [];
-  const meta = [r.category, r.servings ? fmtNum(r.servings * factor, lang) + ' ' + lab.servings : '', r.prepTime && lab.prep + ': ' + r.prepTime, r.cookTime && lab.cook + ': ' + r.cookTime].filter(Boolean).join('  ·  ');
+  const meta = [r.category, r.servings ? servText(r.servings * factor, lang) : '', r.prepTime && lab.prep + ': ' + r.prepTime, r.cookTime && lab.cook + ': ' + r.cookTime].filter(Boolean).join('  ·  ');
   blocks.push(h('div', null, r.aiGenerated ? h('div', { class: 'trn' }, '✦ ' + lab.aiRecipe) : null, t ? h('div', { class: 'trn' }, '✦ ' + lab.tr + ' ' + (LANGS[r.lang] || r.lang)) : null, h('h1', null, titleIn(r, lang)), meta ? h('div', { class: 'm' }, meta) : null));
   let first = true;
   r.ingredients.forEach((ing, i) => {
