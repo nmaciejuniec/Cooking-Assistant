@@ -1,0 +1,16 @@
+# Checks that recipe pages listed in tests/links.txt can be read by the app.
+name: Test recipe links
+on:
+  push:
+    branches: [main]
+    paths: ['tests/links.txt', 'scripts/test-links.mjs']
+  workflow_dispatch:
+jobs:
+  links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - run: node scripts/test-links.mjs
