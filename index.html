@@ -1013,10 +1013,11 @@ async function initStore() {
   if (fixed) persistLocal();
   S.loaded = true; render();
   if (LAN.cfg) lanStart();
+  setTimeout(() => { try { scheduleTags(); } catch (e) { } }, 3000);
   try { if (navigator.storage && navigator.storage.persist) S.persisted = await navigator.storage.persist(); } catch (e) { }
 }
 function persistLocal() { lsSet('cookingAssistant.local', S.recipes); }
-async function saveRecipe(r) {
+async function saveRecipe(r, fromTags) {
   const pendingImg = r._img; delete r._img;
   if (pendingImg) { r.image = { kind: pendingImg.kind, at: Date.now() }; setImgVer(r.id, r.image.at); S.imgs[r.id] = pendingImg.data; try { await IDB.set(r.id, pendingImg.data); } catch (e) { } }
   r.updatedAt = Date.now(); if (!r.createdAt) r.createdAt = r.updatedAt;
@@ -1024,6 +1025,7 @@ async function saveRecipe(r) {
   if (i >= 0) S.recipes[i] = clean(r); else S.recipes.push(clean(r));
   S.deleted = S.deleted.filter(d => d.id !== r.id);
   persistLocal(); lsSet('cookingAssistant.deleted', S.deleted);
+  if (!fromTags) { try { scheduleTags(); } catch (e) { } }
 }
 async function deleteRecipe(id) {
   S.recipes = S.recipes.filter(r => r.id !== id);
@@ -1452,6 +1454,59 @@ function lanPanel() {
     h('p', { class: 'hint-small', style: 'margin-top:10px' }, tx('Działa, gdy oba urządzenia są w tym samym Wi-Fi i mają otwartą aplikację. Zmiany zrobione poza domem przejdą przy następnym spotkaniu urządzeń. Klucz API się nie synchronizuje. Plik synchronizacji poniżej zostaje jako kopia zapasowa.')));
 }
 
+// ---- tags shown in the interface language ----
+const TAG_DICT = [["wegetariańskie", "vegetarian", "vegetarisk"], ["wegańskie", "vegan", "vegansk"], ["szybkie", "quick", "hurtig"], ["bez glutenu", "gluten-free", "glutenfri"], ["bez laktozy", "lactose-free", "laktosefri"], ["bez cukru", "sugar-free", "sukkerfri"], ["bez jajek", "egg-free", "æggefri"], ["bez orzechów", "nut-free", "nøddefri"], ["ostre", "spicy", "stærk"], ["słodkie", "sweet", "sød"], ["słone", "savoury", "salt"], ["tradycyjne", "traditional", "traditionel"], ["klasyka", "classic", "klassisk"], ["czekolada", "chocolate", "chokolade"], ["drożdżowe", "yeast dough", "gærdej"], ["zdrowe", "healthy", "sund"], ["lekkie", "light", "let"], ["dla dzieci", "kid-friendly", "børnevenlig"], ["na imprezę", "party", "fest"], ["jednogarnkowe", "one-pot", "one-pot"], ["niskowęglowodanowe", "low-carb", "lavkulhydrat"], ["wysokobiałkowe", "high-protein", "proteinrig"], ["keto", "keto", "keto"], ["obiad", "dinner", "aftensmad"], ["śniadanie", "breakfast", "morgenmad"], ["lunch", "lunch", "frokost"], ["kolacja", "supper", "aftensmad"], ["deser", "dessert", "dessert"], ["przekąska", "snack", "snack"], ["zupa", "soup", "suppe"], ["sałatka", "salad", "salat"], ["grill", "barbecue", "grill"], ["święta", "christmas", "jul"], ["boże narodzenie", "christmas", "jul"], ["wielkanoc", "easter", "påske"], ["budżetowe", "budget", "billig"], ["mięsne", "meat", "kød"], ["rybne", "fish", "fisk"], ["owoce morza", "seafood", "skaldyr"], ["kurczak", "chicken", "kylling"], ["wołowina", "beef", "oksekød"], ["wieprzowina", "pork", "svinekød"], ["makaron", "pasta", "pasta"], ["ryż", "rice", "ris"], ["ziemniaki", "potatoes", "kartofler"], ["warzywa", "vegetables", "grøntsager"], ["owoce", "fruit", "frugt"], ["pieczenie", "baking", "bagning"], ["ciasto", "cake", "kage"], ["chleb", "bread", "brød"], ["na zimno", "cold", "kold"], ["na ciepło", "warm", "varm"], ["meal prep", "meal prep", "meal prep"], ["do pracy", "lunchbox", "madpakke"], ["z piekarnika", "oven-baked", "ovnbagt"], ["smażone", "fried", "stegt"], ["duszone", "stewed", "gryderet"], ["kuchnia polska", "polish cuisine", "polsk mad"], ["kuchnia duńska", "danish cuisine", "dansk mad"], ["kuchnia włoska", "italian", "italiensk"], ["kuchnia azjatycka", "asian", "asiatisk"], ["kuchnia meksykańska", "mexican", "mexicansk"], ["kuchnia indyjska", "indian", "indisk"], ["kremowe", "creamy", "cremet"], ["chrupiące", "crispy", "sprød"], ["sezonowe", "seasonal", "sæsonens"], ["jesień", "autumn", "efterår"], ["zima", "winter", "vinter"], ["lato", "summer", "sommer"], ["wiosna", "spring", "forår"]].map(([pl, en, da]) => ({ pl, en, da }));
+const tagNorm = (t) => String(t || '').trim().toLowerCase();
+function tagRow(t) { const n = tagNorm(t); return TAG_DICT.find(r => r.pl === n || r.en === n || r.da === n); }
+function tagSrcLang(r) {
+  if (r.tagLang) return r.tagLang;
+  const v = { pl: 0, en: 0, da: 0 };
+  (r.tags || []).forEach(t => { const n = tagNorm(t), row = tagRow(t); if (row) ['pl', 'en', 'da'].forEach(l => { if (row[l] === n && !(row.pl === row.en && row.en === row.da)) v[l]++; }); });
+  const best = Object.entries(v).sort((a, b) => b[1] - a[1])[0];
+  if (best[1] > 0) return best[0];
+  return ['pl', 'en', 'da'].includes(r.lang) ? r.lang : 'pl';
+}
+function tagIn(r, t, lang) {
+  const src = tagSrcLang(r);
+  if (src === lang) return t;
+  const row = tagRow(t); if (row) return row[lang];
+  const m = r.tagTr && r.tagTr[lang]; return (m && m[t]) || t;
+}
+function tagsIn(r, lang) { return (r.tags || []).map(t => tagIn(r, t, lang || S.settings.ui || 'pl')); }
+function tagsAllForms(r) { const out = new Set(r.tags || []); ['pl', 'en'].forEach(l => tagsIn(r, l).forEach(x => out.add(x))); return Array.from(out); }
+let tagTimer = null, tagBusy = false;
+function scheduleTags() { clearTimeout(tagTimer); tagTimer = setTimeout(translateTags, 4000); }
+async function translateTags() {
+  if (tagBusy || !aiReady() || !S.loaded) return;
+  const need = new Map(); // "src|tag" -> { src, tag, langs:Set }
+  S.recipes.forEach(r => {
+    const src = tagSrcLang(r);
+    (r.tags || []).forEach(t => ['pl', 'en'].forEach(l => {
+      if (l === src || tagRow(t) || (r.tagTr && r.tagTr[l] && r.tagTr[l][t])) return;
+      const k = src + '|' + t; if (!need.has(k)) need.set(k, { src, tag: t, langs: new Set() }); need.get(k).langs.add(l);
+    }));
+  });
+  if (!need.size) return;
+  tagBusy = true;
+  try {
+    const list = Array.from(need.values()).slice(0, 150).map(x => ({ tag: x.tag, from: x.src }));
+    const res = await ai(`Przetłumacz krótkie tagi przepisów kulinarnych. Dla każdego podaj wersję polską i angielską: małymi literami, krótko, tak jak tag w aplikacji z przepisami (np. "wegańskie" / "vegan"). Jeśli tag już jest w danym języku, przepisz go bez zmian.
+Zwróć WYŁĄCZNIE JSON {"t":[{"tag":"<oryginał>","pl":"...","en":"..."}]}
+Tagi: ${JSON.stringify(list)}`, { modelTier: 'fast' });
+    const got = new Map(); ((res && res.t) || []).forEach(x => { if (x && x.tag) got.set(String(x.tag), x); });
+    for (const r of S.recipes.slice()) {
+      const src = tagSrcLang(r); let ch = false; const tr = clean(r.tagTr || {});
+      (r.tags || []).forEach(t => ['pl', 'en'].forEach(l => {
+        if (l === src || tagRow(t) || (tr[l] && tr[l][t])) return;
+        const g = got.get(t); const v = g && typeof g[l] === 'string' ? g[l].trim().toLowerCase().slice(0, 40) : '';
+        if (v) { tr[l] = tr[l] || {}; tr[l][t] = v; ch = true; }
+      }));
+      if (ch) { const nr = clean(r); nr.tagTr = tr; if (!nr.tagLang) nr.tagLang = src; await saveRecipe(nr, true); }
+    }
+    softRender();
+  } catch (e) { /* tags stay as written; try again later */ }
+  finally { tagBusy = false; }
+}
 function renderSettings() {
   const head = h('header', { class: 'top' }, h('div', { class: 'wrap row' },
     h('button', { class: 'iconbtn', onclick: () => goto('list') }, '←'), h('div', { class: 'grow', style: 'font-weight:600' }, tx('Ustawienia'))));
@@ -1561,7 +1616,7 @@ function normalizeParsed(x, source) {
     id: uid(), title: String(x.title || tx('Bez tytułu')).trim(), lang,
     category: x.category && typeof x.category === 'string' ? x.category : '',
     subcategory: x.subcategory && typeof x.subcategory === 'string' ? x.subcategory.trim().slice(0, 40) : '',
-    tags: Array.isArray(x.tags) ? x.tags.map(String).slice(0, 6) : [],
+    tags: Array.isArray(x.tags) ? x.tags.map(String).slice(0, 6) : [], tagLang: S.settings.ui === 'en' ? 'en' : 'pl',
     servings: typeof x.servings === 'number' && x.servings > 0 ? x.servings : null,
     prepTime: String(x.prepTime || ''), cookTime: String(x.cookTime || ''),
     source: Object.assign({ name: String(x.sourceName || '') }, source || {}),
@@ -1715,7 +1770,7 @@ function filtered() {
     if (S.cat && S.sub && (r.subcategory || '') !== S.sub) return false;
     if (S.stat && !hasMark(r, S.stat)) return false;
     if (!terms.length) return true;
-    const hay = normalize([r.title, r.category, r.subcategory, (r.tags || []).join(' '), r.notes, r.source && r.source.name,
+    const hay = normalize([r.title, r.category, r.subcategory, tagsAllForms(r).join(' '), r.notes, r.source && r.source.name,
     (r.ingredients || []).map(i => i.item).join(' '), (r.steps || []).join(' '),
     Object.values(r.tr || {}).map(t => [t.title, (t.items || []).join(' ')].join(' ')).join(' ')].join(' '));
     return terms.every(t => hay.includes(t));
@@ -1769,7 +1824,7 @@ function renderList() {
           r.status && r.status !== 'fav' && STATUS[r.status] ? h('span', { class: 'stattag' + (r.status === 'fail' ? ' bad' : '') }, STATUS[r.status].icon + ' ' + tx(STATUS[r.status].label)) : null,
           (r.flags || []).filter(k => FLAGS[k]).map(k => h('span', { class: 'stattag flag' }, FLAGS[k].icon + ' ' + tx(FLAGS[k].label)))) : null,
         h('div', { class: 'meta' }, [catLabel(r), time, r.servings ? servText(r.servings) : '', LANG_SHORT[r.lang] || r.lang].filter(Boolean).join(' · ')),
-        h('div', null, (r.tags || []).map(t => h('span', { class: 'tag' }, t)),
+        h('div', null, tagsIn(r).map(t => h('span', { class: 'tag' }, t)),
           r.ai && r.ai.hints && r.ai.hints.length ? h('span', { class: 'aitag' }, tx('✦ dopisek AI')) : null, r.aiGenerated ? h('span', { class: 'aitag' }, tx('✦ przepis AI')) : null));
     })));
   }
@@ -1871,7 +1926,7 @@ function renderRecipe() {
   const facts = (r.prepTime || r.cookTime || r.servings) ? h('div', { class: 'facts' },
     fact('⏱', lab.prep, r.prepTime), fact('♨', lab.cook, r.cookTime), fact('🍴', lab.servings, r.servings ? String(curServ) : '')) : null;
   body.append(h('div', { class: 'meta catline' }, catLabel(r)),
-    h('div', { class: 'tagline' }, (r.tags || []).map(x => h('span', { class: 'tag' }, x))));
+    h('div', { class: 'tagline' }, tagsIn(r).map(x => h('span', { class: 'tag' }, x))));
   if (r.source && (r.source.url || r.source.name)) {
     body.append(h('div', { class: 'meta', style: 'margin-top:4px' }, lab.source + ': ',
       r.source.url ? h('a', { href: r.source.url, target: '_blank', rel: 'noopener' }, r.source.name || hostOf(r.source.url)) : r.source.name));
@@ -2158,7 +2213,7 @@ function renderEdit() {
       h('div', { class: 'grow' }, h('label', { class: 'f' }, tx('Porcje')), (f.serv = h('input', { type: 'number', min: '1', value: r.servings || '' }))),
       h('div', { class: 'grow' }, h('label', { class: 'f' }, tx('Przygotowanie')), inp('prep', { value: r.prepTime, placeholder: '20 min' })),
       h('div', { class: 'grow' }, h('label', { class: 'f' }, tx('Gotowanie')), inp('cook', { value: r.cookTime, placeholder: '45 min' }))),
-    h('label', { class: 'f' }, tx('Tagi (po przecinku)')), inp('tags', { value: (r.tags || []).join(', '), placeholder: tx('wegetariańskie, szybkie') }),
+    h('label', { class: 'f' }, tx('Tagi (po przecinku)')), inp('tags', { value: tagsIn(r).join(', '), placeholder: tx('wegetariańskie, szybkie') }),
     h('label', { class: 'f' }, tx('Składniki: jeden w linii, nagłówek grupy zacznij od #')), f.ing,
     h('label', { class: 'f' }, tx('Kroki: każdy w nowej linii')), f.steps,
     h('label', { class: 'f' }, tx('Moje notatki')), f.notes,
@@ -2175,7 +2230,7 @@ function renderEdit() {
     nr.lang = f.lang.value; nr.category = f.cat.value === '__new' ? '' : f.cat.value; nr.subcategory = nr.category ? f.sub.value.trim() : '';
     nr.servings = parseFloat(f.serv.value) > 0 ? parseFloat(f.serv.value) : null;
     nr.prepTime = f.prep.value.trim(); nr.cookTime = f.cook.value.trim();
-    nr.tags = f.tags.value.split(',').map(s => s.trim()).filter(Boolean);
+    { const typed = f.tags.value.split(',').map(s => s.trim()).filter(Boolean); if (typed.join('|') !== tagsIn(r).join('|')) { nr.tags = typed; nr.tagLang = S.settings.ui || 'pl'; } }
     nr.ingredients = f.ing.value.split('\n').map(parseIngredientLine).filter(Boolean);
     nr.steps = f.steps.value.split('\n').map(s => s.replace(/^\s*(\d+[.)]|krok\s*\d+[:.]?)\s*/i, '').trim()).filter(Boolean);
     nr.notes = f.notes.value;
@@ -2655,7 +2710,7 @@ function toMarkdown(r, lang, factor) {
   if (t) lines.push('_' + lab.tr + ' ' + (LANGS[r.lang] || r.lang) + '_', '');
   const meta = [catLabel(r, false), r.servings ? servText(r.servings * factor, lang) : '', r.prepTime && lab.prep + ': ' + r.prepTime, r.cookTime && lab.cook + ': ' + r.cookTime].filter(Boolean);
   if (meta.length) lines.push(meta.join(' · '), '');
-  if (r.tags && r.tags.length) lines.push('Tagi: ' + r.tags.join(', '), '');
+  if (r.tags && r.tags.length) lines.push((lang === 'pl' ? 'Tagi: ' : lang === 'da' ? 'Tags: ' : 'Tags: ') + tagsIn(r, lang === 'da' ? 'en' : lang).join(', '), '');
   lines.push('## ' + lab.ing, '');
   r.ingredients.forEach((ing, i) => {
     const name = (t && t.items && t.items[i]) || ing.item;
