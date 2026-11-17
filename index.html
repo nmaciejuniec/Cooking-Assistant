@@ -428,6 +428,7 @@ function displayQty(ing, factor, mode, lang, isOrigLang) {
   const q2 = ing.qtyMax != null ? roundScaled(ing.qtyMax * factor, ing.unit, factor) : null;
   const ut = unitText(ing, lang, isOrigLang);
   const origStr = has ? (fmtNum(q1, lang, ing.unit) + (q2 != null ? '–' + fmtNum(q2, lang, ing.unit) : '') + (ut ? ' ' + ut : '')) : (ut || '');
+  if (mode === 'household') return householdQty(ing, q1, q2, lang, origStr);
   if (mode !== 'metric' || !has || !ing.unit || !UNITS[ing.unit]) return { q: origStr };
   const U = UNITS[ing.unit];
   const conv = (base, mul) => fmtMetric(q1 * mul, base, lang).replace(/ (g|kg|ml|l)$/, q2 != null ? '' : ' $1') + (q2 != null ? '–' + fmtMetric(q2 * mul, base, lang) : '');
@@ -451,6 +452,46 @@ function roundScaled(x, unit, factor) {
   if (['kg', 'l', 'dl', 'cl', 'oz', 'lb', 'floz', 'dag'].includes(u)) return x >= 10 ? Math.round(x) : Math.round(x * 10) / 10;
   if (['tsp', 'tbsp', 'cup', 'szkl', 'pinch'].includes(u)) return Math.max(0.25, Math.round(x * 4) / 4);
   return Math.max(0.5, Math.round(x * 2) / 2);
+}
+// Household measures per display language: big = glass/cup/dl in ml; forms: [one, few, many, fraction].
+const HH = {
+  pl: { big: 250, bigUnit: 'szkl', big_f: ['szklanka', 'szklanki', 'szklanek', 'szklanki'], tb: ['łyżka', 'łyżki', 'łyżek', 'łyżki'], ts: ['łyżeczka', 'łyżeczki', 'łyżeczek', 'łyżeczki'], pinch: 'szczypta' },
+  en: { big: 240, bigUnit: 'cup', big_f: ['cup', 'cups', 'cups', 'cup'], tb: ['tbsp', 'tbsp', 'tbsp', 'tbsp'], ts: ['tsp', 'tsp', 'tsp', 'tsp'], pinch: 'pinch' },
+  da: { big: 100, bigUnit: 'dl', big_f: ['dl', 'dl', 'dl', 'dl'], tb: ['spsk', 'spsk', 'spsk', 'spsk'], ts: ['tsk', 'tsk', 'tsk', 'tsk'], pinch: 'knivspids' },
+};
+function hhForm(x, forms, lang) {
+  if (Math.abs(x - Math.round(x)) > 0.01) return forms[3];
+  const n = Math.round(x);
+  if (lang === 'en') return n === 1 ? forms[0] : forms[1];
+  if (n === 1) return forms[0];
+  const d = n % 10, dd = n % 100;
+  return (d >= 2 && d <= 4 && !(dd >= 12 && dd <= 14)) ? forms[1] : forms[2];
+}
+function hhFromMl(ml, lang) {
+  const H = HH[lang] || HH.pl;
+  const nice = (x, step) => Math.max(step, Math.round(x / step) * step);
+  if (ml >= H.big * 0.24) {
+    const step = lang === 'da' ? 0.5 : 0.25;
+    const v = nice(ml / H.big, step);
+    return (fmtFrac(v) || fmtNum(v, lang)) + ' ' + hhForm(v, H.big_f, lang);
+  }
+  if (ml >= 7.5) { const x = nice(ml / 15, 0.5); return (fmtFrac(x) || fmtNum(x, lang)) + ' ' + hhForm(x, H.tb, lang); }
+  if (ml >= 1.2) { const x = nice(ml / 5, 0.25); return (fmtFrac(x) || fmtNum(x, lang)) + ' ' + hhForm(x, H.ts, lang); }
+  return H.pinch;
+}
+function householdQty(ing, q1, q2, lang, origStr) {
+  if (q1 == null || q2 != null || !ing.unit || !UNITS[ing.unit]) return { q: origStr };
+  const U = UNITS[ing.unit], H = HH[lang] || HH.pl;
+  if (U.t === 'v') {
+    if (['tsp', 'tbsp', 'pinch', H.bigUnit].includes(ing.unit)) return { q: origStr };
+    return { q: hhFromMl(q1 * U.f, lang), orig: origStr };
+  }
+  if (U.t === 'm') {
+    const d = findDensity(ing.item);
+    if (!d) return { q: origStr };
+    return { q: hhFromMl(q1 * U.f / d.d, lang), approx: true, orig: origStr, note: d.n };
+  }
+  return { q: origStr };
 }
 function convertTemps(text, lang) {
   return (text || '').replace(/(\d{3})\s*°?\s*(?:F\b|Fahrenheit\b)/g, (all, f) => {
@@ -1386,7 +1427,7 @@ function renderRecipe() {
       h('span', null, servText(curServ, S.settings.ui)),
       h('button', { onclick: () => { S.servings[r.id] = (curServ || 1) + 1; render(); } }, '+'))
       : h('span', { class: 'hint-small' }, tx('Brak liczby porcji: dodaj ją w edycji, żeby skalować.')),
-    h('div', { class: 'seg' }, [['orig', tx('Oryginalne')], ['metric', 'g / ml']].map(([k, l]) =>
+    h('div', { class: 'seg' }, [['orig', tx('Oryginalne')], ['metric', 'g / ml'], ['household', tx('Szklanki i łyżki')]].map(([k, l]) =>
       h('button', { class: mode === k ? 'on' : '', onclick: () => { S.settings.units = k; saveSettings(); render(); } }, l)))));
   if (factor !== 1) body.append(h('div', { class: 'hint-small', style: 'margin-top:6px' }, tx('Przeliczone ×') + fmtNum(factor, 'pl') + tx('. Czasy i rozmiar formy w krokach mogą wymagać zmiany.')));
 
@@ -1402,7 +1443,7 @@ function renderRecipe() {
     return h('li', null, h('span', { class: 'q' }, (d.approx ? '≈ ' : '') + d.q),
       h('span', null, name, d.orig ? h('div', { class: 'orig' }, '(' + d.orig + (d.note ? ', ' + d.note : '') + ')') : null));
   })));
-  if (anyApprox) ingPanel.append(h('p', { class: 'hint-small', style: 'margin-top:8px' }, tx('≈ przeliczenie objętości na gramy jest orientacyjne (zależy od produktu i sposobu nabierania).')));
+  if (anyApprox) ingPanel.append(h('p', { class: 'hint-small', style: 'margin-top:8px' }, (mode === 'household' ? tx('≈ przeliczenie gramów na szklanki i łyżki jest orientacyjne (zależy od produktu i sposobu nabierania).') : tx('≈ przeliczenie objętości na gramy jest orientacyjne (zależy od produktu i sposobu nabierania).'))));
   const cols = h('div', { class: 'cols' }, ingPanel);
   body.append(cols);
 
@@ -1422,7 +1463,7 @@ function renderRecipe() {
       S.canWrite && r.steps.length && !t ? simpBtn : null),
     r.stepsSimplified ? h('div', { class: 'trbanner', style: 'margin:0 0 10px' }, '✦ ' + tx('Kroki uproszczone przez AI.') + ' ',
       S.canWrite && r.stepsOriginal ? h('a', { href: '#', onclick: async (e) => { e.preventDefault(); const nr = clean(r); nr.steps = nr.stepsOriginal; delete nr.stepsOriginal; nr.stepsSimplified = false; await saveRecipe(nr); toast(tx('Przywrócono oryginalne kroki')); render(); } }, tx('Przywróć oryginał')) : null) : null,
-    steps.length ? h('ol', { class: 'steps' }, steps.map(s => h('li', null, mode === 'metric' ? convertTemps(s) : s))) : h('p', { class: 'hint-small' }, tx('Brak kroków.'))));
+    steps.length ? h('ol', { class: 'steps' }, steps.map(s => h('li', null, mode !== 'orig' ? convertTemps(s) : s))) : h('p', { class: 'hint-small' }, tx('Brak kroków.'))));
 
   // AI hints
   const hints = (r.ai && r.ai.hints) || [];
@@ -1478,6 +1519,7 @@ async function setStatus(r, st) {
   toast(st ? tx('Oznaczono: ') + tx(STATUS[st].label) : tx('Usunięto oznaczenie'));
   softRender();
 }
+function unitModeLabel() { const m = S.settings.units; return m === 'metric' ? 'g / ml' : m === 'household' ? tx('szklanki i łyżki') : tx('oryginalne'); }
 function servWord(n, lang, acc) {
   lang = lang || (S.settings.ui === 'en' ? 'en' : 'pl');
   const x = Math.abs(Number(n)), int = Number.isInteger(x);
@@ -1563,10 +1605,10 @@ async function cookMode(r) {
     if (!steps.length) stepCol.append(h('p', null, tx('Brak kroków.')));
     else {
       stepCol.append(h('div', { class: 'hint-small' }, tx('Krok ') + (idx + 1) + tx(' z ') + steps.length),
-        h('div', { class: 'stepcard' + (done.has(idx) ? ' done' : ''), onclick: () => { done.has(idx) ? unfinish(idx) : finish(idx); draw(); } }, mode === 'metric' ? convertTemps(steps[idx]) : steps[idx]));
+        h('div', { class: 'stepcard' + (done.has(idx) ? ' done' : ''), onclick: () => { done.has(idx) ? unfinish(idx) : finish(idx); draw(); } }, mode !== 'orig' ? convertTemps(steps[idx]) : steps[idx]));
       if (used.length) stepCol.append(h('div', { class: 'need' }, h('div', { class: 'hint-small', style: 'margin-bottom:6px' }, tx('W tym kroku:')),
         h('div', { class: 'row wrapflex' }, used.map(i => h('span', { class: 'needchip' }, h('b', null, qtyOf(i)), ' ', names[i])))));
-      stepCol.append(h('ol', { class: 'alls' }, steps.map((s, i) => h('li', { class: (done.has(i) ? 'done' : '') + (i === idx ? ' cur' : ''), onclick: () => { idx = i; draw(); } }, mode === 'metric' ? convertTemps(s) : s))));
+      stepCol.append(h('ol', { class: 'alls' }, steps.map((s, i) => h('li', { class: (done.has(i) ? 'done' : '') + (i === idx ? ' cur' : ''), onclick: () => { idx = i; draw(); } }, mode !== 'orig' ? convertTemps(s) : s))));
     }
     const hints = (r.ai && r.ai.hints) || [];
     if (hints.length) stepCol.append(h('div', { class: 'aibox', style: 'font-size:16px' }, h('div', { class: 'lbl' }, '✦ ' + lab.ai), h('ul', null, hints.map((x, i) => h('li', null, (t && t.hints && t.hints[i]) || x.text)))));
@@ -2147,7 +2189,7 @@ function toMarkdown(r, lang, factor) {
   });
   const steps = (t && t.steps) || r.steps;
   lines.push('', '## ' + lab.steps, '');
-  steps.forEach((s, i) => lines.push((i + 1) + '. ' + (S.settings.units === 'metric' ? convertTemps(s) : s)));
+  steps.forEach((s, i) => lines.push((i + 1) + '. ' + (S.settings.units !== 'orig' ? convertTemps(s) : s)));
   const hints = (r.ai && r.ai.hints) || [];
   if (hints.length) { lines.push('', '> **✦ ' + lab.ai + '** (' + lab.aiSub + ')'); hints.forEach((x, i) => lines.push('> - ' + ((t && t.hints && t.hints[i]) || x.text))); }
   if (r.notes) lines.push('', '## ' + lab.notes, '', r.notes);
@@ -2155,7 +2197,7 @@ function toMarkdown(r, lang, factor) {
   return lines.join('\n');
 }
 async function exportMenu(r, lang, factor) {
-  const v = await modal(tx('Eksport przepisu'), h('p', { class: 'hint-small' }, tx('Wersja: ') + (LANGS[lang] || lang) + (factor !== 1 ? tx(', przeliczona na ') + servText(S.servings[r.id], S.settings.ui, true) : '') + tx(', jednostki: ') + (S.settings.units === 'metric' ? 'g / ml' : tx('oryginalne')) + '.'),
+  const v = await modal(tx('Eksport przepisu'), h('p', { class: 'hint-small' }, tx('Wersja: ') + (LANGS[lang] || lang) + (factor !== 1 ? tx(', przeliczona na ') + servText(S.servings[r.id], S.settings.ui, true) : '') + tx(', jednostki: ') + unitModeLabel() + '.'),
     [{ label: tx('Anuluj'), value: null }, { label: tx('JSON (kopia)'), value: 'json' }, { label: tx('Markdown / tekst'), value: 'md' }, { label: 'PDF A5', value: 'pdf', primary: true }]);
   if (v === 'json') exportJSON([r], slug(r.title));
   if (v === 'md') exportFile(toMarkdown(r, lang, factor), slug(titleIn(r, lang)) + '.md');
@@ -2180,7 +2222,7 @@ function a5Blocks(item) {
   });
   const steps = (t && t.steps) || r.steps;
   steps.forEach((s, i) => {
-    const el = h('div', { class: 's' }, h('span', { class: 'n' }, (i + 1) + '.'), h('span', null, mode === 'metric' ? convertTemps(s) : s));
+    const el = h('div', { class: 's' }, h('span', { class: 'n' }, (i + 1) + '.'), h('span', null, mode !== 'orig' ? convertTemps(s) : s));
     blocks.push(i === 0 ? h('div', null, h('h4', null, lab.steps), el) : el);
   });
   const hints = (r.ai && r.ai.hints) || [];
@@ -2219,7 +2261,7 @@ async function pdfFlow(items, name) {
   const opts = h('div', null,
     h('label', { class: 'row', style: 'margin:6px 0' }, h('input', { type: 'checkbox', checked: S.settings.binder, onchange: e => { S.settings.binder = e.target.checked; saveSettings(); } }), tx('Szerszy lewy margines na dziurki (segregator)')),
     h('label', { class: 'row', style: 'margin:6px 0' }, h('input', { type: 'checkbox', checked: S.settings.compact, onchange: e => { S.settings.compact = e.target.checked; saveSettings(); } }), tx('Kompaktowo (mniejsza czcionka, więcej na stronie)')),
-    h('p', { class: 'hint-small' }, items.length + tx(' przepis(y). Każdy przepis zaczyna się na nowej stronie. Jednostki: ') + (S.settings.units === 'metric' ? 'g / ml' : tx('oryginalne')) + '.'));
+    h('p', { class: 'hint-small' }, items.length + tx(' przepis(y). Każdy przepis zaczyna się na nowej stronie. Jednostki: ') + unitModeLabel() + '.'));
   const go = await modal('PDF A5', opts, [{ label: tx('Anuluj'), value: null }, { label: tx('Przygotuj podgląd'), value: true, primary: true }]);
   if (!go) return;
   const wait = h('div', { class: 'modal-bg' }, h('div', { class: 'modal' }, h('span', { class: 'spinner' }), tx(' Składam strony A5…')));
@@ -2271,6 +2313,7 @@ Object.assign(UI_EN, {"Nie udało się pobrać zdjęcia ze strony. Możesz doda�
 Object.assign(UI_EN, {'Wersja aplikacji: ': 'App version: '});
 Object.assign(UI_EN, {"Potrzebny klucz API": "API key needed", "Funkcje AI (rozpoznawanie przepisów, tłumaczenia, grafiki, asystent) działają po wpisaniu klucza API Anthropic w Ustawieniach. Klucz tworzysz na console.anthropic.com → API keys.": "AI features (reading recipes, translations, pictures, assistant) work after you enter an Anthropic API key in Settings. Create the key at console.anthropic.com → API keys."});
 Object.assign(UI_EN, {"Uprość kroki": "Simplify steps", "Upraszczam…": "Simplifying…", "Kroki uproszczone": "Steps simplified", "Kroki uproszczone przez AI.": "Steps simplified by AI.", "Przywróć oryginał": "Restore original", "Przywrócono oryginalne kroki": "Original steps restored"});
+Object.assign(UI_EN, {"Szklanki i łyżki": "Cups & spoons", "szklanki i łyżki": "cups & spoons", "≈ przeliczenie gramów na szklanki i łyżki jest orientacyjne (zależy od produktu i sposobu nabierania).": "≈ converting grams to cups and spoons is approximate (depends on the product and how it is measured)."});
 Object.values(DEFAULT_SUBS).flat().forEach(x => CAT_SET.add(x));
 render();
 initStore();
