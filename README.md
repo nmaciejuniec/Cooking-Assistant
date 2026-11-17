@@ -56,7 +56,8 @@ In the Claude version: **⋯ → Backup (JSON)** (Polish: *Kopia zapasowa (JSON)
 → **⚙ Settings → Load and merge file**.
 
 ## Features
-- Add recipes from a photo, PDF, Word (.docx), text file, saved web page (.html), pasted text, or manually
+- Add recipes from a link (the app downloads the page and reads the recipe), a photo, PDF, Word (.docx), text file, pasted text, or manually.
+  If a website refuses the download, copy the recipe text and paste it instead.
 - Original language kept, AI translations to Polish, English and Danish
 - Scale servings, grams/ml conversion (approximate values marked ≈), °F → °C
 - Categories, tags, search (including ingredients), Favourites and To try

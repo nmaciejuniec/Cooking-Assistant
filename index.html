@@ -618,7 +618,7 @@ const NATIVE = (window.Capacitor && window.Capacitor.isNativePlatform && window.
 const CAP = (n) => (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins[n]) || null;
 const MODELS = { 'claude-sonnet-5-5': 'Claude Sonnet 5.5', 'claude-haiku-5-5': 'Claude Haiku 5.5' };
 function lsGet(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }
-function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { toast(tx('Nie udało się zapisać w przeglądarce')); return false; } }
+function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { toast(tx('Nie udało się zapisać danych na tym urządzeniu')); return false; } }
 function apiKey() { return lsGet('cookingAssistant.apikey', ''); }
 function apiModel() { const m = lsGet('cookingAssistant.model', 'claude-sonnet-5-5'); return MODELS[m] ? m : 'claude-sonnet-5-5'; }
 function blobToB64(blob) { return new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result).split(',')[1]); fr.onerror = rej; fr.readAsDataURL(blob); }); }
@@ -703,6 +703,23 @@ const fileDownloads = {
     return { status: 'saved' };
   },
 };
+// Downloads a web page. Only the Android and Mac apps can do this; a browser blocks it.
+function canFetchPages() { return !!((window.native && window.native.fetchUrl) || (NATIVE === 'android' && CAP('CapacitorHttp'))); }
+async function fetchPage(url) {
+  if (!/^https?:\/\//i.test(url)) throw new Error(tx('Link musi zaczynać się od https://'));
+  let status = 0, text = '';
+  if (window.native && window.native.fetchUrl) { const r = await window.native.fetchUrl(url); status = r.status; text = r.text || ''; }
+  else if (NATIVE === 'android' && CAP('CapacitorHttp')) {
+    const r = await CAP('CapacitorHttp').get({ url, responseType: 'text', headers: { 'Accept': 'text/html,application/xhtml+xml', 'Accept-Language': 'pl,en;q=0.8,da;q=0.6' } });
+    status = r.status; text = typeof r.data === 'string' ? r.data : JSON.stringify(r.data || '');
+  } else throw new Error(tx('Pobieranie stron działa tylko w aplikacji na Androida i na Maca.'));
+  if (!status || status >= 400 || !text) throw new Error(tx('Ta strona nie pozwoliła pobrać przepisu') + (status ? ' (' + status + ')' : '') + '. ' + tx('Skopiuj tekst i wklej poniżej.'));
+  return text;
+}
+function ldToText(x) {
+  return [x.title, x.servings ? 'Porcje: ' + x.servings : '', x.prepTime ? 'Przygotowanie: ' + x.prepTime : '', x.cookTime ? 'Gotowanie: ' + x.cookTime : '',
+    'Składniki:', ...x.ingredients.map(ingredientToLine), 'Przygotowanie:', ...x.steps.map((st, i) => (i + 1) + '. ' + st)].filter(Boolean).join('\n');
+}
 function refreshAi() { S.sample = apiKey() ? apiSample : null; S.sampleImages = true; }
 async function initStore() {
   S.local = true;
@@ -819,7 +836,7 @@ function renderSettings() {
         h('div', { class: 'seg' }, ['pl', 'en'].map(k => h('button', { class: S.settings.ui === k ? 'on' : '', onclick: () => { S.settings.ui = k; saveSettings(); render(); } }, k === 'pl' ? 'Polski' : 'English')))),
       h('p', { class: 'hint-small' }, tx('Systemowy: zmienia się razem z ustawieniem telefonu lub komputera.'))),
     h('div', { class: 'panel' }, h('h2', { style: 'font-size:19px' }, '✦ ' + tx('AI (klucz API Anthropic)')),
-      h('p', { class: 'hint-small' }, tx('Klucz jest zapisany tylko w tej przeglądarce na tym urządzeniu. Nie trafia do kodu ani do pliku synchronizacji. Bez klucza aplikacja działa, ale bez funkcji AI.')),
+      h('p', { class: 'hint-small' }, tx(NATIVE ? 'Klucz jest zapisany tylko w aplikacji na tym urządzeniu. Nie trafia do pliku synchronizacji. Bez klucza aplikacja działa, ale bez funkcji AI.' : 'Klucz jest zapisany tylko w tej przeglądarce na tym urządzeniu. Nie trafia do kodu ani do pliku synchronizacji. Bez klucza aplikacja działa, ale bez funkcji AI.')),
       h('label', { class: 'f' }, tx('Klucz API')), h('div', { class: 'row' }, keyIn, h('button', { class: 'btn small', onclick: () => { keyIn.type = keyIn.type === 'password' ? 'text' : 'password'; } }, '👁')),
       h('label', { class: 'f' }, tx('Model')), model,
       h('div', { class: 'row wrapflex', style: 'margin-top:10px' },
@@ -839,14 +856,14 @@ function renderSettings() {
         h('button', { class: 'btn primary', onclick: () => exportFile(JSON.stringify(syncPayload(true)), 'recipes-sync-' + stamp() + '.json') }, tx('Zapisz plik synchronizacji')),
         h('button', { class: 'btn', onclick: () => fi.click() }, tx('Wczytaj i scal plik')), fi)),
     h('div', { class: 'panel' }, h('h2', { style: 'font-size:19px' }, tx('Dane na tym urządzeniu')),
-      h('p', { class: 'hint-small' }, S.recipes.length + ' ' + tx('przepisów') + ' · ' + (S.persisted ? tx('przeglądarka nie usunie danych automatycznie') : tx('przeglądarka może usunąć dane przy braku miejsca: rób czasem plik synchronizacji jako kopię')))));
+      h('p', { class: 'hint-small' }, S.recipes.length + ' ' + tx('przepisów') + ' · ' + (NATIVE === 'android' ? tx('dane są zapisane w aplikacji; odinstalowanie jej albo „Wyczyść dane” w ustawieniach Androida je usuwa, więc rób czasem plik synchronizacji jako kopię') : NATIVE ? tx('dane są zapisane w aplikacji i zostają przy aktualizacjach; rób czasem plik synchronizacji jako kopię') : S.persisted ? tx('przeglądarka nie usunie danych automatycznie') : tx('przeglądarka może usunąć dane przy braku miejsca: rób czasem plik synchronizacji jako kopię')))));
   app.append(head, body);
 }
 
 // ---- AI ----
 function aiReady() { return !!S.sample; }
 async function ai(prompt, opts) {
-  if (!S.sample) throw new Error(tx('AI niedostępne w tym widoku'));
+  if (!S.sample) throw new Error(tx('AI wymaga klucza API w Ustawieniach.'));
   try { return await S.sample.json(prompt, Object.assign({ modelTier: 'default' }, opts || {})); }
   catch (e) {
     if (e && e.code === 'not_granted') { S.sample = null; softRender(); throw new Error(tx('Brak zgody na AI')); }
@@ -1078,7 +1095,7 @@ function renderList() {
     gridWrap.innerHTML = '';
     const list = filtered();
     if (!S.recipes.length) {
-      gridWrap.append(h('div', { class: 'empty' }, h('h2', null, tx('Pusto, ale smacznie zapowiada się')), h('p', null, tx('Dodaj pierwszy przepis z pliku, zdjęcia, tekstu ze strony albo wpisz ręcznie.')),
+      gridWrap.append(h('div', { class: 'empty' }, h('h2', null, tx('Pusto, ale smacznie zapowiada się')), h('p', null, tx('Dodaj pierwszy przepis z linku, zdjęcia, pliku albo wpisz go ręcznie.')),
         S.canWrite ? h('button', { class: 'btn primary', onclick: () => goto('import') }, tx('+ Dodaj przepis')) : null)); return;
     }
     if (!list.length) { gridWrap.append(h('div', { class: 'empty' }, tx('Nic nie znaleziono.'))); return; }
@@ -1280,6 +1297,13 @@ function servWord(n, lang, acc) {
   const d = x % 10, dd = x % 100;
   return (d >= 2 && d <= 4 && !(dd >= 12 && dd <= 14)) ? 'porcje' : 'porcji';
 }
+function countText(n, kind) {
+  const en = S.settings.ui === 'en';
+  if (en) return n + ' ' + (kind === 'ing' ? (n === 1 ? 'ingredient' : 'ingredients') : (n === 1 ? 'step' : 'steps'));
+  const f = kind === 'ing' ? ['składnik', 'składniki', 'składników'] : ['krok', 'kroki', 'kroków'];
+  const d = n % 10, dd = n % 100;
+  return n + ' ' + (n === 1 ? f[0] : (d >= 2 && d <= 4 && !(dd >= 12 && dd <= 14)) ? f[1] : f[2]);
+}
 function servText(n, lang, acc) { return fmtNum(n, lang === 'en' ? 'en' : 'pl') + ' ' + servWord(n, lang, acc); }
 function hostOf(u) { try { return new URL(u).hostname.replace(/^www\./, ''); } catch (e) { return u; } }
 function slug(s) { return normalize(s).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 50) || 'recipe'; }
@@ -1370,7 +1394,7 @@ async function cookMode(r) {
   }
   draw();
   document.body.append(ov);
-  if (!lock) toast(tx('Ekran może się wygaszać: ta przeglądarka nie pozwala go zablokować'), 3500);
+  if (!lock) toast(tx('Ekran może się wygaszać: to urządzenie nie pozwala go zablokować'), 3500);
 }
 
 // ---- editor ----
@@ -1484,7 +1508,7 @@ function renderImport() {
   body.append(tabs);
   const status = h('div', { style: 'margin-top:12px' });
   const setBusy = (msg) => { status.innerHTML = ''; if (msg) status.append(h('div', { class: 'panel' }, h('span', { class: 'spinner' }), ' ', msg)); };
-  if (!aiReady()) body.append(h('div', { class: 'banner' }, tx('Bez klucza API rozpoznawanie przepisów z plików, zdjęć i tekstu nie działa. Działają: zapisana strona .html, plik synchronizacji .json i dodawanie ręczne. Klucz dodasz w Ustawieniach.')));
+  if (!aiReady()) body.append(h('div', { class: 'banner' }, tx(canFetchPages() ? 'Bez klucza API rozpoznawanie przepisów ze zdjęć, plików i wklejonego tekstu nie działa. Działają: pobieranie z linku (gdy strona ma zapisane dane przepisu), zapisana strona .html, plik synchronizacji .json i dodawanie ręczne. Klucz dodasz w Ustawieniach.' : 'Bez klucza API rozpoznawanie przepisów z plików, zdjęć i tekstu nie działa. Działają: zapisana strona .html, plik synchronizacji .json i dodawanie ręczne. Klucz dodasz w Ustawieniach.')));
 
   if (tab === 'file') {
     const fi = h('input', { type: 'file', multiple: true, accept: '.txt,.md,.html,.htm,.json,.pdf,.docx,image/*', style: 'display:none' });
@@ -1528,6 +1552,27 @@ function renderImport() {
     const url = h('input', { type: 'url', placeholder: tx('https://… (link do przepisu, zapisze się jako źródło)') });
     const ta = h('textarea', { style: 'min-height:220px', placeholder: tx('Wklej tutaj tekst przepisu: ze strony, z notatek w telefonie, z maila…') });
     const go = h('button', { class: 'btn primary', disabled: !aiReady() }, tx('✦ Rozpoznaj przepis'));
+    const fetchBtn = h('button', { class: 'btn primary' }, tx('Pobierz przepis'));
+    fetchBtn.onclick = async () => {
+      const u = url.value.trim();
+      if (!u) { toast(tx('Wklej link do przepisu')); return; }
+      fetchBtn.disabled = true; setBusy(tx('Pobieram stronę…'));
+      try {
+        const html = await fetchPage(u);
+        const src = { type: 'link', url: u, name: hostOf(u) };
+        const ld = recipesFromJsonLd(html);
+        let res;
+        if (ld.length && aiReady()) { setBusy(tx('AI porządkuje przepis…')); res = await aiParse(ld.map(ldToText).join('\n\n---\n\n'), src); }
+        else if (ld.length) res = ld.map(x => { const txt = ldToText(x); const lang = /[æøåÆØÅ]/.test(txt) ? 'da' : /[ąćęłńśźżĄĆĘŁŃŚŹŻ]/.test(txt) ? 'pl' : 'en'; return Object.assign(blankRecipe(), x, { lang, source: src }); });
+        else if (aiReady()) { setBusy(tx('AI rozpoznaje przepis…')); res = await aiParse(stripTags(html.replace(/<(script|style|nav|footer|header)[\s\S]*?<\/\1>/gi, ' ')), src); }
+        else throw new Error(tx('Na tej stronie nie ma danych przepisu, a do odczytania tekstu potrzebne jest AI (klucz API w Ustawieniach).'));
+        setBusy('');
+        if (!res || !res.length) { status.append(h('div', { class: 'banner' }, tx('Nie znalazłam przepisu na tej stronie. Skopiuj tekst i wklej poniżej.'))); fetchBtn.disabled = false; return; }
+        res.forEach(r => { r.source = Object.assign({}, r.source, { url: u, name: (r.source && r.source.name) || hostOf(u), type: 'link' }); });
+        S.pending = res; goto('review');
+      } catch (e) { setBusy(''); status.innerHTML = ''; status.append(h('div', { class: 'banner' }, e.message || String(e))); fetchBtn.disabled = false; }
+    };
+    const native = canFetchPages();
     go.onclick = async () => {
       if (!ta.value.trim()) { toast(tx('Wklej tekst przepisu')); return; }
       go.disabled = true; setBusy(tx('AI rozpoznaje przepis…'));
@@ -1542,9 +1587,10 @@ function renderImport() {
       } catch (e) { setBusy(''); toast(e.message); go.disabled = false; }
     };
     body.append(h('div', { class: 'panel' },
-      h('p', { style: 'margin-top:0' }, h('b', null, tx('Jak dodać z linku: ')), tx('aplikacja nie może sama otworzyć cudzej strony (przeglądarka to blokuje). Otwórz przepis, zaznacz tekst (składniki i kroki), skopiuj i wklej poniżej. Link wklej w pierwsze pole, żeby zapisał się jako źródło.')),
-      h('label', { class: 'f' }, tx('Link (opcjonalnie)')), url,
-      h('label', { class: 'f' }, tx('Tekst przepisu')), ta,
+      native ? h('p', { style: 'margin-top:0' }, h('b', null, tx('Z linku: ')), tx('wklej link i kliknij „Pobierz przepis”. Jeśli strona nie pozwoli go pobrać, skopiuj tekst przepisu i wklej go niżej.'))
+        : h('p', { style: 'margin-top:0' }, h('b', null, tx('Jak dodać z linku: ')), tx('aplikacja nie może sama otworzyć cudzej strony (przeglądarka to blokuje). Otwórz przepis, zaznacz tekst (składniki i kroki), skopiuj i wklej poniżej. Link wklej w pierwsze pole, żeby zapisał się jako źródło.')),
+      h('label', { class: 'f' }, native ? tx('Link do przepisu') : tx('Link (opcjonalnie)')), native ? h('div', { class: 'row' }, url, fetchBtn) : url,
+      h('label', { class: 'f' }, native ? tx('…albo wklej tekst przepisu') : tx('Tekst przepisu')), ta,
       h('div', { class: 'row', style: 'margin-top:10px;justify-content:flex-end' }, go)));
   } else {
     S.editing = blankRecipe(); S.pendingIdx = -1; S.importTab = 'file'; goto('edit'); return;
@@ -1564,7 +1610,7 @@ function renderReview() {
     const simPending = S.pending.filter((x, j) => j !== i).map(x => ({ r: x, s: similarity(r, x) })).filter(x => x.s >= 0.55);
     body.append(h('div', { class: 'panel' },
       h('h3', { style: 'font-size:19px' }, r.title),
-      h('div', { class: 'meta' }, [catLabel(r), (LANGS[r.lang] || r.lang), r.ingredients.filter(x => !x.header).length + tx(' składników'), r.steps.length + tx(' kroków'), r.servings ? servText(r.servings) : tx('brak porcji')].filter(Boolean).join(' · ')),
+      h('div', { class: 'meta' }, [catLabel(r), (LANGS[r.lang] || r.lang), countText(r.ingredients.filter(x => !x.header).length, 'ing'), countText(r.steps.length, 'step'), r.servings ? servText(r.servings) : tx('brak porcji')].filter(Boolean).join(' · ')),
       r.missing && r.missing.length ? h('div', { class: 'warn' }, tx('⚠ Braki: ') + r.missing.join('; ')) : null,
       r.ai && r.ai.hints && r.ai.hints.length ? h('div', null, h('span', { class: 'aitag' }, '✦ ' + r.ai.hints.length + tx(' dopisek/dopiski AI'))) : null,
       sim.length ? h('div', { class: 'dupe' }, tx('⧉ Podobny do: ') + sim.slice(0, 3).map(x => x.r.title + ' (' + Math.round(x.s * 100) + '%)').join(', ')) : null,
@@ -1823,7 +1869,7 @@ function renderAsstProfile() {
   drawFacts();
   const newFact = h('input', { type: 'text', placeholder: tx('Dodaj coś do zapamiętania…') });
   const body = h('div', { class: 'wrap' }, topBanners(),
-    h('p', { class: 'hint-small' }, tx('Profil i pamięć asystenta są zapisane na tym urządzeniu i trafiają do pliku synchronizacji (nie do pliku dla mamy). Rozmowy zostają tylko tutaj.')),
+    h('p', { class: 'hint-small' }, tx('Profil i pamięć asystenta są zapisane na tym urządzeniu i trafiają do pliku synchronizacji. Rozmowy zostają tylko tutaj.')),
     fields.map(x => x.el),
     h('div', { class: 'panel' }, h('h2', { style: 'font-size:18px' }, tx('Wspólne')), h('label', { class: 'f' }, tx('Sprzęt, czas na gotowanie, budżet, inne')), shared),
     h('div', { class: 'panel' }, h('h2', { style: 'font-size:18px' }, '🧠 ' + tx('Zapamiętane przez asystenta')), factList,
@@ -2019,6 +2065,8 @@ window.addEventListener('popstate', (e) => {
 Object.assign(UI_EN, {'Wygląd': 'Appearance', 'Jasny': 'Light', 'Ciemny': 'Dark', 'Systemowy': 'System', 'Systemowy: zmienia się razem z ustawieniem telefonu lub komputera.': 'System: follows the setting of your phone or computer.', 'W tym kroku:': 'In this step:', 'Zapisz lub wyślij plik': 'Save or send the file'});
 Object.assign(UI_EN, {"Wszystkie w kategorii": "All in category", "Kategorie": "Categories", "Wszystkie": "All", "Podkategoria": "Subcategory", "np. Serniki": "e.g. Cheesecakes", "Uzupełnij podkategorie (AI)": "Fill in subcategories (AI)", "Wszystkie przepisy z kategorią mają już podkategorię": "All recipes with a category already have a subcategory", "AI dobiera podkategorie…": "AI is choosing subcategories…", "AI nie zaproponowało podkategorii": "AI did not suggest any subcategories", "Proponowane podkategorie": "Suggested subcategories", "Sprawdź i zatwierdź. Później zmienisz je w edycji przepisu.": "Review and confirm. You can change them later when editing a recipe.", "Zastosuj": "Apply", "Serniki": "Cheesecakes", "Pierniki": "Gingerbread", "Jabłeczniki i szarlotki": "Apple cakes", "Ciasta drożdżowe": "Yeast cakes", "Babki": "Bundt cakes", "Torty": "Layer cakes", "Tarty": "Tarts", "Ciasteczka": "Cookies", "Mięsne": "Meat", "Drób": "Poultry", "Ryby": "Fish", "Wegetariańskie": "Vegetarian", "Makarony": "Pasta", "Pierogi i kluski": "Dumplings", "Kremy": "Cream soups", "Tradycyjne": "Traditional", "Na zimno": "Cold", "Kremy i musy": "Creams & mousses", "Owocowe": "Fruit", "Lody": "Ice cream", "Na słodko": "Sweet", "Na słono": "Savoury", "Z jajek": "Eggs", "Obiadowe": "Main-course", "Do grilla": "For the grill", "Na imprezę": "Party", "Pasty i dipy": "Spreads & dips", "Dżemy": "Jams", "Kiszonki": "Ferments", "Marynaty": "Pickles", "Koktajle": "Smoothies", "Lemoniady": "Lemonades", "Sosy": "Sauces", "Dodatki": "Sides"});
 Object.assign(UI_EN, {"Sprawdzone": "Tried", "Nie wyszło": "Didn't work", "Na okazje": "Special occasions", "Szybkie": "Quick", "Wszystkie kategorie": "All categories"});
+Object.assign(UI_EN, {"Link musi zaczynać się od https://": "The link must start with https://", "Pobieranie stron działa tylko w aplikacji na Androida i na Maca.": "Fetching pages only works in the Android and Mac apps.", "Ta strona nie pozwoliła pobrać przepisu": "This website did not allow the recipe to be fetched", "Skopiuj tekst i wklej poniżej.": "Copy the text and paste it below.", "Pobierz przepis": "Fetch recipe", "Wklej link do przepisu": "Paste a recipe link", "Pobieram stronę…": "Fetching the page…", "AI porządkuje przepis…": "AI is tidying up the recipe…", "Na tej stronie nie ma danych przepisu, a do odczytania tekstu potrzebne jest AI (klucz API w Ustawieniach).": "This page has no recipe data, and reading its text needs AI (API key in Settings).", "Nie znalazłam przepisu na tej stronie. Skopiuj tekst i wklej poniżej.": "No recipe found on this page. Copy the text and paste it below.", "Z linku: ": "From a link: ", "wklej link i kliknij „Pobierz przepis”. Jeśli strona nie pozwoli go pobrać, skopiuj tekst przepisu i wklej go niżej.": "paste the link and tap “Fetch recipe”. If the website does not allow it, copy the recipe text and paste it below.", "Link do przepisu": "Recipe link", "…albo wklej tekst przepisu": "…or paste the recipe text"});
+Object.assign(UI_EN, {"Nie udało się zapisać danych na tym urządzeniu": "Could not save data on this device", "Klucz jest zapisany tylko w aplikacji na tym urządzeniu. Nie trafia do pliku synchronizacji. Bez klucza aplikacja działa, ale bez funkcji AI.": "The key is stored only in the app on this device. It is never put in the sync file. Without a key the app works, just without AI features.", "dane są zapisane w aplikacji; odinstalowanie jej albo „Wyczyść dane” w ustawieniach Androida je usuwa, więc rób czasem plik synchronizacji jako kopię": "data is stored in the app; uninstalling it or “Clear data” in Android settings deletes it, so save a sync file now and then as a backup", "dane są zapisane w aplikacji i zostają przy aktualizacjach; rób czasem plik synchronizacji jako kopię": "data is stored in the app and kept through updates; save a sync file now and then as a backup", "Ekran może się wygaszać: to urządzenie nie pozwala go zablokować": "The screen may dim: this device does not allow keeping it on", "Bez klucza API rozpoznawanie przepisów ze zdjęć, plików i wklejonego tekstu nie działa. Działają: pobieranie z linku (gdy strona ma zapisane dane przepisu), zapisana strona .html, plik synchronizacji .json i dodawanie ręczne. Klucz dodasz w Ustawieniach.": "Without an API key, reading recipes from photos, files and pasted text does not work. Still working: fetching from a link (when the page contains recipe data), a saved .html page, a .json sync file and manual entry. Add a key in Settings.", "Profil i pamięć asystenta są zapisane na tym urządzeniu i trafiają do pliku synchronizacji. Rozmowy zostają tylko tutaj.": "The assistant profile and memory are stored on this device and included in the sync file. Chats stay on this device only.", "Dodaj pierwszy przepis z linku, zdjęcia, pliku albo wpisz go ręcznie.": "Add your first recipe from a link, a photo, a file, or type it in."});
 Object.values(DEFAULT_SUBS).flat().forEach(x => CAT_SET.add(x));
 render();
 initStore();

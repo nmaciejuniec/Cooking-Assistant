@@ -28,6 +28,24 @@ ipcMain.handle('anthropic', async (_e, { key, body }) => {
   }
 });
 
+// Downloads a recipe page for the "add from link" feature.
+ipcMain.handle('fetchUrl', async (_e, url) => {
+  try {
+    if (!/^https?:\/\//i.test(String(url))) return { status: 0, text: '' };
+    const r = await fetch(String(url), {
+      redirect: 'follow',
+      headers: {
+        'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36',
+        'accept': 'text/html,application/xhtml+xml', 'accept-language': 'pl,en;q=0.8,da;q=0.6',
+      },
+    });
+    const text = await r.text();
+    return { status: r.status, text: text.slice(0, 3000000) };
+  } catch (err) {
+    return { status: 0, text: '', error: String(err && err.message || err) };
+  }
+});
+
 app.whenReady().then(() => {
   if (process.platform === 'darwin') Menu.setApplicationMenu(Menu.buildFromTemplate([
     { role: 'appMenu' }, { role: 'editMenu' }, { role: 'viewMenu' }, { role: 'windowMenu' },
