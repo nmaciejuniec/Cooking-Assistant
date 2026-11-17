@@ -511,7 +511,10 @@ function recipesFromJsonLd(html) {
     if (t === 'Recipe' || (Array.isArray(t) && t.includes('Recipe'))) out.push(o);
     if (o['@graph']) visit(o['@graph']);
   };
-  while ((m = re.exec(html))) { try { visit(JSON.parse(m[1].trim())); } catch (e) { } }
+  while ((m = re.exec(html))) {
+    const raw = m[1].trim().replace(/^<!--|-->$/g, '').replace(/^\s*\/\/\s*<!\[CDATA\[|\/\/\s*\]\]>\s*$/g, '');
+    try { visit(JSON.parse(raw)); } catch (e) { try { visit(JSON.parse(raw.replace(/[\u0000-\u001F]+/g, ' '))); } catch (e2) { } }
+  }
   return out.map(o => {
     const steps = [];
     const walk = (x) => {
@@ -535,6 +538,32 @@ function recipesFromJsonLd(html) {
     };
   });
 }
+// Recipe data written as schema.org microdata (itemprop attributes). DP = a DOMParser constructor.
+function recipesFromMicrodata(html, DP) {
+  if (!DP || !/schema\.org\/Recipe/i.test(html)) return [];
+  const doc = new DP().parseFromString(html, 'text/html');
+  const roots = Array.from(doc.querySelectorAll('[itemtype]')).filter(e => /schema\.org\/Recipe$/i.test((e.getAttribute('itemtype') || '').trim()));
+  const txt = (el) => ((el.getAttribute && (el.getAttribute('content') || '')) || el.textContent || '').replace(/\s+/g, ' ').trim();
+  return roots.map(root => {
+    const all = Array.from(root.querySelectorAll('[itemprop]'));
+    const props = (name) => all.filter(e => (e.getAttribute('itemprop') || '').split(/\s+/).includes(name));
+    const title = props('name').map(txt).find(Boolean) || '';
+    const ings = props('recipeIngredient').concat(props('ingredients')).map(txt).filter(Boolean);
+    const steps = [];
+    props('recipeInstructions').forEach(e => {
+      const items = Array.from(e.querySelectorAll('li, p'));
+      if (items.length) items.forEach(i => { const t = txt(i); if (t) steps.push(t); });
+      else { const t = txt(e); if (t) steps.push(t); }
+    });
+    const uniq = steps.filter((x, i) => steps.indexOf(x) === i);
+    const y = props('recipeYield').map(txt).find(Boolean) || '';
+    const yn = parseInt(y, 10);
+    const dur = (n) => { const e = props(n)[0]; return e ? isoDur(e.getAttribute('content') || e.getAttribute('datetime') || '') : ''; };
+    return { title, servings: isNaN(yn) ? null : yn, prepTime: dur('prepTime'), cookTime: dur('cookTime'),
+      ingredients: ings.map(parseIngredientLine).filter(Boolean), steps: uniq, category: '', tags: [] };
+  }).filter(r => r.title && (r.ingredients.length || r.steps.length));
+}
+function recipesFromHtml(html, DP) { const ld = recipesFromJsonLd(html); return ld.length ? ld : recipesFromMicrodata(html, DP); }
 function stripTags(s) { return String(s).replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/\s+/g, ' ').trim(); }
 function isoDur(d) {
   if (!d || typeof d !== 'string') return '';
@@ -1006,7 +1035,7 @@ async function readFile(file) {
     try { const j = JSON.parse(raw); const list = Array.isArray(j) ? j : (j.recipes || [j]); if (list.length && list[0].title) return { sync: j }; } catch (e) { }
   }
   if (/\.html?$/.test(name) || /<html|<body|<div/i.test(raw.slice(0, 2000))) {
-    const ld = recipesFromJsonLd(raw);
+    const ld = recipesFromHtml(raw, window.DOMParser);
     if (ld.length) return { ld };
     return { text: stripTags(raw.replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ')) };
   }
@@ -1560,7 +1589,7 @@ function renderImport() {
       try {
         const html = await fetchPage(u);
         const src = { type: 'link', url: u, name: hostOf(u) };
-        const ld = recipesFromJsonLd(html);
+        const ld = recipesFromHtml(html, window.DOMParser);
         let res;
         if (ld.length && aiReady()) { setBusy(tx('AI porządkuje przepis…')); res = await aiParse(ld.map(ldToText).join('\n\n---\n\n'), src); }
         else if (ld.length) res = ld.map(x => { const txt = ldToText(x); const lang = /[æøåÆØÅ]/.test(txt) ? 'da' : /[ąćęłńśźżĄĆĘŁŃŚŹŻ]/.test(txt) ? 'pl' : 'en'; return Object.assign(blankRecipe(), x, { lang, source: src }); });

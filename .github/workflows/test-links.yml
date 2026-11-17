@@ -13,4 +13,5 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
+      - run: npm install --no-save --no-audit --no-fund linkedom@0.18
       - run: node scripts/test-links.mjs

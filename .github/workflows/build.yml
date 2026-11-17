@@ -5,6 +5,7 @@ name: Build apps
 on:
   push:
     branches: [main]
+    paths-ignore: ['tests/**', 'scripts/test-links.mjs', '.github/workflows/test-links.yml']
   workflow_dispatch:
 
 permissions:
