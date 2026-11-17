@@ -92,6 +92,32 @@ label.f{display:block;font-size:13px;font-weight:600;color:var(--muted);margin:1
   .grid{grid-template-columns:repeat(auto-fill,minmax(280px,1fr))}
   .bub{max-width:70%}
 }
+.catchips{display:contents}
+.subchips{padding-top:4px}
+.chip.small{font-size:13px;padding:3px 10px}
+.listlayout{display:block}
+.tree{display:none}
+@media (min-width:1000px){
+  .catchips,.subchips{display:none}
+  .listlayout{display:grid;grid-template-columns:250px minmax(0,1fr);gap:18px;align-items:start}
+  .listlayout .grid{margin-top:12px}
+  .tree{display:block;position:sticky;top:150px;margin-top:12px;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:10px;max-height:calc(100vh - 170px);overflow:auto}
+  .tree-h{font-family:Fraunces,serif;font-weight:700;font-size:16px;padding:4px 8px 8px}
+  .tnode{display:flex;gap:6px;align-items:center;width:100%;border:none;background:none;text-align:left;padding:7px 8px;border-radius:9px;cursor:pointer;font-size:15px}
+  .tnode:hover{background:var(--accent-soft)}
+  .tnode.on{background:var(--ink);color:var(--on-ink)}
+  .tnode.sub{padding-left:30px;font-size:14px}
+  .tnode .caret{width:12px;color:var(--muted);font-size:12px}
+  .tnode.on .caret{color:inherit}
+  .tnode .cnt{font-size:12px;color:var(--muted)}
+  .tnode.on .cnt{color:inherit;opacity:.8}
+}
+.segscroll{overflow-x:auto;padding:8px 0 2px;scrollbar-width:none}
+.segscroll .seg{white-space:nowrap}
+.segscroll .seg button{padding:7px 13px}
+.stattag{margin-right:4px}
+.stattag.flag{background:var(--gold-bg);color:var(--ink)}
+.stattag.bad{background:var(--err-bg);color:var(--danger)}
 .empty{text-align:center;color:var(--muted);padding:50px 10px}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--surface)}
 .seg button{border:none;background:none;padding:6px 12px;cursor:pointer;font-size:14px}
@@ -748,6 +774,30 @@ function mergeSync(j) {
 }
 function syncSummary(st) { return tx('Nowe: ') + st.added + ' · ' + tx('zaktualizowane: ') + st.updated + ' · ' + tx('usunięte: ') + st.removed; }
 // ---- settings ----
+async function aiSubcategories() {
+  const todo = S.recipes.filter(r => r.category && !r.subcategory).slice(0, 150);
+  if (!todo.length) { toast(tx('Wszystkie przepisy z kategorią mają już podkategorię')); return; }
+  const wait = h('div', { class: 'modal-bg' }, h('div', { class: 'modal' }, h('span', { class: 'spinner' }), ' ' + tx('AI dobiera podkategorie…')));
+  document.body.append(wait);
+  let res;
+  try {
+    res = await ai(`Przypisz podkategorie przepisom w aplikacji z przepisami. Podkategoria to krótka grupa w ramach kategorii (np. kategoria "Ciasta i wypieki": Serniki, Pierniki, Jabłeczniki i szarlotki).
+Używaj istniejących podkategorii, gdy pasują: ${CAT_LIST().map(c => c + ': ' + (subSuggestions(c).join(', ') || '–')).join(' | ')}.
+Nową podkategorię twórz tylko, gdy żadna nie pasuje; pisz ją po polsku, krótko, w liczbie mnogiej. Jeśli nie wiadomo, zostaw "".
+Zwróć WYŁĄCZNIE JSON {"items":[{"id":string,"subcategory":string}]}.
+PRZEPISY (id | tytuł | kategoria | główne składniki):
+${todo.map(r => [r.id, r.title, r.category, (r.ingredients || []).filter(i => !i.header).slice(0, 6).map(i => i.item).join(', ')].join(' | ')).join('\n')}`);
+  } catch (e) { wait.remove(); toast(e.message, 4000); return; }
+  wait.remove();
+  const items = (res && Array.isArray(res.items) ? res.items : []).filter(x => x && getR(String(x.id)) && String(x.subcategory || '').trim());
+  if (!items.length) { toast(tx('AI nie zaproponowało podkategorii')); return; }
+  const v = await modal(tx('Proponowane podkategorie'), h('div', null, h('p', { class: 'hint-small' }, tx('Sprawdź i zatwierdź. Później zmienisz je w edycji przepisu.')),
+    h('ul', { class: 'ing' }, items.map(x => { const r = getR(String(x.id)); return h('li', null, h('span', { class: 'grow' }, r.title), h('span', { class: 'meta' }, tx(r.category) + ' › ' + String(x.subcategory).trim())); }))),
+    [{ label: tx('Anuluj'), value: null }, { label: tx('Zastosuj') + ' (' + items.length + ')', value: true, primary: true }]);
+  if (!v) return;
+  for (const x of items) { const r = clean(getR(String(x.id))); r.subcategory = String(x.subcategory).trim().slice(0, 40); await saveRecipe(r); }
+  toast(tx('Zapisano')); render();
+}
 function renderSettings() {
   const head = h('header', { class: 'top' }, h('div', { class: 'wrap row' },
     h('button', { class: 'iconbtn', onclick: () => goto('list') }, '←'), h('div', { class: 'grow', style: 'font-weight:600' }, tx('Ustawienia'))));
@@ -804,14 +854,30 @@ async function ai(prompt, opts) {
     throw new Error((e && (e.message || e.code)) || tx('Błąd AI'));
   }
 }
+const DEFAULT_SUBS = {
+  'Ciasta i wypieki': ['Serniki', 'Pierniki', 'Jabłeczniki i szarlotki', 'Ciasta drożdżowe', 'Babki', 'Torty', 'Tarty', 'Ciasteczka'],
+  'Dania główne': ['Mięsne', 'Drób', 'Ryby', 'Wegetariańskie', 'Makarony', 'Pierogi i kluski'],
+  'Zupy': ['Kremy', 'Tradycyjne', 'Na zimno'],
+  'Desery': ['Kremy i musy', 'Owocowe', 'Lody'],
+  'Śniadania': ['Na słodko', 'Na słono', 'Z jajek'],
+  'Sałatki': ['Obiadowe', 'Do grilla'],
+  'Przekąski': ['Na imprezę', 'Pasty i dipy'],
+  'Przetwory': ['Dżemy', 'Kiszonki', 'Marynaty'],
+  'Napoje': ['Koktajle', 'Lemoniady'],
+  'Sosy i dodatki': ['Sosy', 'Dodatki'],
+};
+function subsOf(cat) { return Array.from(new Set(S.recipes.filter(r => r.category === cat && r.subcategory).map(r => r.subcategory))).sort((a, b) => a.localeCompare(b, 'pl')); }
+function subSuggestions(cat) { return Array.from(new Set(subsOf(cat).concat(DEFAULT_SUBS[cat] || []))); }
+function catLabel(r, translate) { const t = translate === false ? (x => x) : tx; return r.category ? t(r.category) + (r.subcategory ? ' › ' + t(r.subcategory) : '') : ''; }
 const CAT_LIST = () => Array.from(new Set(DEFAULT_CATS.concat(S.recipes.map(r => r.category).filter(Boolean))));
 function parsePrompt(text, hasImages) {
   return `Jesteś precyzyjnym parserem przepisów kulinarnych. ${hasImages ? 'Przepis jest na załączonym obrazie (lub obrazach). Odczytaj tekst dokładnie.' : 'Wyodrębnij przepis(y) z tekstu poniżej.'}
 Zwróć WYŁĄCZNIE JSON w formacie:
-{"recipes":[{"title":string,"lang":"pl"|"en"|"da"|"inny kod ISO","category":string,"tags":[string],"servings":number|null,"prepTime":string,"cookTime":string,"sourceName":string,"ingredients":[{"header":boolean,"qty":number|null,"qtyMax":number|null,"unit":string,"item":string}],"steps":[string],"missing":[string],"hints":[string]}]}
+{"recipes":[{"title":string,"lang":"pl"|"en"|"da"|"inny kod ISO","category":string,"subcategory":string,"tags":[string],"servings":number|null,"prepTime":string,"cookTime":string,"sourceName":string,"ingredients":[{"header":boolean,"qty":number|null,"qtyMax":number|null,"unit":string,"item":string}],"steps":[string],"missing":[string],"hints":[string]}]}
 Zasady:
 - Przepisuj TYLKO to, co jest w źródle, w oryginalnym języku. Nie zgaduj i nie uzupełniaj pól przepisu. Gdy czegoś brakuje, zostaw "" lub null i opisz brak w "missing" (${S.settings.ui === 'en' ? 'in English' : 'po polsku'}, krótko).
 - "category": wybierz jedną z: ${CAT_LIST().join(', ')}. Jeśli nie pasuje żadna, "Inne".
+- "subcategory": krótka podkategoria w ramach kategorii (np. dla Ciasta i wypieki: Serniki, Pierniki). Najlepiej jedna z istniejących: ${CAT_LIST().map(c => c + ': ' + (subSuggestions(c).join(', ') || '–')).join(' | ')}. Pusta, jeśli nie wiadomo.
 - "tags": 0-5 krótkich tagów ${S.settings.ui === 'en' ? 'in English (e.g. vegetarian, quick, gluten-free)' : 'po polsku (np. wegetariańskie, szybkie, bez glutenu)'} tylko jeśli wynikają z treści.
 - "unit": jednostka dokładnie jak w źródle (np. "łyżki", "dl", "cup", "g"), bez liczby; "" gdy brak. Ułamki jako liczby dziesiętne (1/2 -> 0.5). Zakres "2-3" -> qty 2, qtyMax 3.
 - "header": true dla nagłówków grup składników (np. "Ciasto:"), wtedy nazwa w "item".
@@ -835,6 +901,7 @@ function normalizeParsed(x, source) {
   return {
     id: uid(), title: String(x.title || tx('Bez tytułu')).trim(), lang,
     category: x.category && typeof x.category === 'string' ? x.category : '',
+    subcategory: x.subcategory && typeof x.subcategory === 'string' ? x.subcategory.trim().slice(0, 40) : '',
     tags: Array.isArray(x.tags) ? x.tags.map(String).slice(0, 6) : [],
     servings: typeof x.servings === 'number' && x.servings > 0 ? x.servings : null,
     prepTime: String(x.prepTime || ''), cookTime: String(x.cookTime || ''),
@@ -970,9 +1037,10 @@ function filtered() {
   const terms = normalize(S.q).split(/\s+/).filter(Boolean);
   let list = S.recipes.filter(r => {
     if (S.cat && r.category !== S.cat) return false;
-    if (S.stat && r.status !== S.stat) return false;
+    if (S.cat && S.sub && (r.subcategory || '') !== S.sub) return false;
+    if (S.stat && !hasMark(r, S.stat)) return false;
     if (!terms.length) return true;
-    const hay = normalize([r.title, r.category, (r.tags || []).join(' '), r.notes, r.source && r.source.name,
+    const hay = normalize([r.title, r.category, r.subcategory, (r.tags || []).join(' '), r.notes, r.source && r.source.name,
     (r.ingredients || []).map(i => i.item).join(' '), (r.steps || []).join(' '),
     Object.values(r.tr || {}).map(t => [t.title, (t.items || []).join(' ')].join(' ')).join(' ')].join(' '));
     return terms.every(t => hay.includes(t));
@@ -992,10 +1060,14 @@ function renderList() {
       h('button', { class: 'iconbtn', title: tx('Więcej'), onclick: listMenu }, '⋯')),
     h('div', { class: 'row', style: 'margin-top:8px' }, search),
     h('button', { class: 'asstbtn', onclick: () => goto('assistant') }, tx('✦ Asystent: co dziś ugotować?')),
+    h('div', { class: 'segscroll' }, h('div', { class: 'seg' },
+      h('button', { class: !S.stat ? 'on' : '', onclick: () => { S.stat = ''; render(); } }, tx('Wszystkie') + ' ' + S.recipes.length),
+      MARK_ORDER.map(k => { const n = S.recipes.filter(r => hasMark(r, k)).length; return h('button', { class: S.stat === k ? 'on' : '', onclick: () => { S.stat = S.stat === k ? '' : k; render(); } }, markDef(k).icon + ' ' + tx(markDef(k).label) + (n ? ' ' + n : '')); }))),
     h('div', { class: 'chips' },
-      h('button', { class: 'chip' + (!S.cat && !S.stat ? ' on' : ''), onclick: () => { S.cat = ''; S.stat = ''; render(); } }, tx('Wszystkie (') + S.recipes.length + ')'),
-      Object.entries(STATUS).map(([k, st]) => h('button', { class: 'chip' + (S.stat === k ? ' on' : ''), onclick: () => { S.stat = S.stat === k ? '' : k; render(); } }, st.icon + ' ' + tx(st.label) + ' (' + S.recipes.filter(r => r.status === k).length + ')')),
-      cats.map(c => h('button', { class: 'chip' + (S.cat === c ? ' on' : ''), onclick: () => { S.cat = S.cat === c ? '' : c; render(); } }, tx(c) + ' (' + S.recipes.filter(r => r.category === c).length + ')')))));
+      h('span', { class: 'catchips' }, h('button', { class: 'chip' + (!S.cat ? ' on' : ''), onclick: () => { S.cat = ''; S.sub = ''; render(); } }, tx('Wszystkie kategorie')), cats.map(c => h('button', { class: 'chip' + (S.cat === c ? ' on' : ''), onclick: () => { S.cat = S.cat === c ? '' : c; S.sub = ''; render(); } }, tx(c) + ' (' + S.recipes.filter(r => r.category === c).length + ')')))),
+    S.cat && subsOf(S.cat).length ? h('div', { class: 'chips subchips' },
+      h('button', { class: 'chip small' + (!S.sub ? ' on' : ''), onclick: () => { S.sub = ''; render(); } }, '↳ ' + tx('Wszystkie w kategorii')),
+      subsOf(S.cat).map(sc => h('button', { class: 'chip small' + (S.sub === sc ? ' on' : ''), onclick: () => { S.sub = S.sub === sc ? '' : sc; render(); } }, tx(sc) + ' (' + S.recipes.filter(r => r.category === S.cat && r.subcategory === sc).length + ')'))) : null));
   const gridWrap = h('div');
   const ctrls = h('div', { class: 'row wrapflex', style: 'margin-top:10px;justify-content:space-between' },
     h('div', { class: 'seg' }, ['new', 'az'].map(k => h('button', { class: S.sort === k ? 'on' : '', onclick: () => { S.sort = k; render(); } }, k === 'new' ? tx('Najnowsze') : 'A–Z'))),
@@ -1017,14 +1089,26 @@ function renderList() {
         h('div', { class: 'row', style: 'align-items:flex-start' }, h('h3', { class: 'grow' }, titleIn(r, lang)),
           S.canWrite ? h('button', { class: 'iconbtn', style: 'font-size:18px;padding:2px 6px;margin:-4px -6px 0 0;color:' + (r.status === 'fav' ? '#C8902A' : '#c9bfb4'), title: r.status === 'fav' ? tx('Usuń z ulubionych') : tx('Dodaj do ulubionych'), onclick: (e) => { e.stopPropagation(); setStatus(r, r.status === 'fav' ? '' : 'fav'); } }, r.status === 'fav' ? '★' : '☆')
             : (r.status === 'fav' ? h('span', { style: 'color:#C8902A' }, '★') : null)),
-        r.status === 'try' ? h('div', null, h('span', { class: 'stattag' }, STATUS.try.icon + ' ' + tx(STATUS.try.label))) : null,
-        h('div', { class: 'meta' }, [tx(r.category), time, r.servings ? servText(r.servings) : '', LANG_SHORT[r.lang] || r.lang].filter(Boolean).join(' · ')),
+        (r.status && r.status !== 'fav') || (r.flags || []).length ? h('div', null,
+          r.status && r.status !== 'fav' && STATUS[r.status] ? h('span', { class: 'stattag' + (r.status === 'fail' ? ' bad' : '') }, STATUS[r.status].icon + ' ' + tx(STATUS[r.status].label)) : null,
+          (r.flags || []).filter(k => FLAGS[k]).map(k => h('span', { class: 'stattag flag' }, FLAGS[k].icon + ' ' + tx(FLAGS[k].label)))) : null,
+        h('div', { class: 'meta' }, [catLabel(r), time, r.servings ? servText(r.servings) : '', LANG_SHORT[r.lang] || r.lang].filter(Boolean).join(' · ')),
         h('div', null, (r.tags || []).map(t => h('span', { class: 'tag' }, t)),
           r.ai && r.ai.hints && r.ai.hints.length ? h('span', { class: 'aitag' }, tx('✦ dopisek AI')) : null, r.aiGenerated ? h('span', { class: 'aitag' }, tx('✦ przepis AI')) : null));
     })));
   }
   drawGrid();
-  app.append(head, h('div', { class: 'wrap' }, topBanners(), ctrls, gridWrap));
+  const tree = h('aside', { class: 'tree' }, h('div', { class: 'tree-h' }, tx('Kategorie')),
+    h('button', { class: 'tnode' + (!S.cat ? ' on' : ''), onclick: () => { S.cat = ''; S.sub = ''; render(); } }, h('span', { class: 'grow' }, tx('Wszystkie')), h('span', { class: 'cnt' }, S.recipes.length)),
+    cats.map(c => {
+      const subs = subsOf(c), open = S.cat === c;
+      return h('div', null,
+        h('button', { class: 'tnode' + (open && !S.sub ? ' on' : ''), onclick: () => { S.cat = c; S.sub = ''; render(); } },
+          h('span', { class: 'caret' }, subs.length ? (open ? '▾' : '▸') : ''), h('span', { class: 'grow' }, tx(c)), h('span', { class: 'cnt' }, S.recipes.filter(r => r.category === c).length)),
+        open ? subs.map(sc => h('button', { class: 'tnode sub' + (S.sub === sc ? ' on' : ''), onclick: () => { S.sub = sc; render(); } },
+          h('span', { class: 'grow' }, tx(sc)), h('span', { class: 'cnt' }, S.recipes.filter(r => r.category === c && r.subcategory === sc).length))) : null);
+    }));
+  app.append(head, h('div', { class: 'wrap' }, topBanners(), ctrls, h('div', { class: 'listlayout' }, S.recipes.length ? tree : null, gridWrap)));
 }
 async function listMenu() {
   const list = filtered();
@@ -1036,6 +1120,7 @@ async function listMenu() {
     { label: 'Markdown', value: 'md' },
     { label: '⚙ ' + tx('Ustawienia i synchronizacja'), value: 'settings' },
     { label: tx('Duplikaty'), value: 'dupes' },
+    aiReady() ? { label: '✦ ' + tx('Uzupełnij podkategorie (AI)'), value: 'subs', ai: true } : null,
     { label: tx('Zamknij'), value: null },
   ].filter(Boolean));
   if (v === 'pdf') { if (!list.length) return toast(tx('Brak przepisów')); pdfFlow(list.map(r => ({ r, lang: displayLang(r), factor: 1 })), 'recipe-notebook'); }
@@ -1043,6 +1128,7 @@ async function listMenu() {
   if (v === 'md') exportFile(list.map(r => toMarkdown(r, displayLang(r), 1)).join('\n\n---\n\n'), 'recipes.md');
   if (v === 'settings') goto('settings');
   if (v === 'dupes') goto('dupes');
+  if (v === 'subs') aiSubcategories();
 }
 
 // ---- recipe view ----
@@ -1088,10 +1174,12 @@ function renderRecipe() {
   body.append(h('h1', { class: 'rtitle' }, (t && t.title) || r.title));
   if (r.aiGenerated) body.append(h('div', { class: 'trbanner' }, '✦ ' + tx('Ten przepis wymyśliło AI (asystent). Nie pochodzi ze sprawdzonego źródła, więc sprawdź ilości i czasy.')));
   if (S.canWrite) body.append(h('div', { class: 'row wrapflex', style: 'margin:4px 0 8px' },
-    Object.entries(STATUS).map(([k, st]) => h('button', { class: 'btn small statbtn' + (r.status === k ? ' on' : ''), title: r.status === k ? tx('Kliknij, aby usunąć oznaczenie') : '', onclick: () => setStatus(r, r.status === k ? '' : k) }, st.icon + ' ' + tx(st.label) + (r.status === k ? '  ✕' : '')))));
-  else if (r.status) body.append(h('span', { class: 'stattag' }, STATUS[r.status].icon + ' ' + tx(STATUS[r.status].label)));
+    Object.entries(STATUS).map(([k, st]) => h('button', { class: 'btn small statbtn' + (r.status === k ? ' on' : ''), title: r.status === k ? tx('Kliknij, aby usunąć oznaczenie') : '', onclick: () => setStatus(r, r.status === k ? '' : k) }, st.icon + ' ' + tx(st.label) + (r.status === k ? '  ✕' : ''))),
+    h('span', { style: 'width:1px;height:22px;background:var(--line);margin:0 4px' }),
+    Object.entries(FLAGS).map(([k, st]) => { const on = (r.flags || []).includes(k); return h('button', { class: 'btn small statbtn' + (on ? ' on' : ''), onclick: () => toggleFlag(r, k) }, st.icon + ' ' + tx(st.label) + (on ? '  ✕' : '')); })));
+  else if (r.status || (r.flags || []).length) body.append(h('div', null, r.status ? h('span', { class: 'stattag' }, STATUS[r.status].icon + ' ' + tx(STATUS[r.status].label)) : null, (r.flags || []).filter(k => FLAGS[k]).map(k => h('span', { class: 'stattag flag' }, FLAGS[k].icon + ' ' + tx(FLAGS[k].label)))));
   const times = [r.prepTime ? lab.prep + ': ' + r.prepTime : '', r.cookTime ? lab.cook + ': ' + r.cookTime : ''].filter(Boolean).join(' · ');
-  body.append(h('div', { class: 'meta' }, [tx(r.category), times].filter(Boolean).join(' · ')),
+  body.append(h('div', { class: 'meta' }, [catLabel(r), times].filter(Boolean).join(' · ')),
     h('div', null, (r.tags || []).map(x => h('span', { class: 'tag' }, x))));
   if (r.source && (r.source.url || r.source.name)) {
     body.append(h('div', { class: 'meta', style: 'margin-top:4px' }, lab.source + ': ',
@@ -1166,7 +1254,17 @@ function renderRecipe() {
     } }, tx('Usuń')) : null));
   app.append(head, body, bar);
 }
-const STATUS = { fav: { icon: '★', label: 'Ulubione' }, try: { icon: '🕐', label: 'Do wypróbowania' } };
+const STATUS = { fav: { icon: '★', label: 'Ulubione' }, try: { icon: '🕐', label: 'Do wypróbowania' }, ok: { icon: '✓', label: 'Sprawdzone' }, fail: { icon: '✗', label: 'Nie wyszło' } };
+const FLAGS = { occasion: { icon: '🎉', label: 'Na okazje' }, quick: { icon: '⚡', label: 'Szybkie' } };
+const MARK_ORDER = ['fav', 'try', 'ok', 'occasion', 'quick', 'fail'];
+function markDef(k) { return STATUS[k] || FLAGS[k]; }
+function hasMark(r, k) { return STATUS[k] ? r.status === k : (r.flags || []).includes(k); }
+async function toggleFlag(r, k) {
+  const nr = clean(r); const f = new Set(nr.flags || []);
+  const on = !f.has(k); on ? f.add(k) : f.delete(k); nr.flags = Array.from(f);
+  try { await saveRecipe(nr); } catch (e) { return; }
+  toast(on ? tx('Oznaczono: ') + tx(FLAGS[k].label) : tx('Usunięto oznaczenie')); softRender();
+}
 async function setStatus(r, st) {
   const nr = clean(r); nr.status = st || '';
   try { await saveRecipe(nr); } catch (e) { return; }
@@ -1262,9 +1360,8 @@ async function cookMode(r) {
         const cur = getR(r.id) || r;
         if (S.canWrite && cur.status !== 'fav') {
           const v = await modal(tx('Smacznego! Jak wyszło?'), h('p', null, cur.status === 'try' ? tx('Ten przepis był na liście „Do wypróbowania”.') : tx('Możesz od razu oznaczyć przepis.')),
-            [{ label: tx('Zamknij'), value: null }, cur.status === 'try' ? { label: tx('Usuń z „Do wypróbowania”'), value: 'clear' } : null, { label: tx('★ Do ulubionych'), value: 'fav', primary: true }].filter(Boolean));
-          if (v === 'fav') await setStatus(cur, 'fav');
-          if (v === 'clear') await setStatus(cur, '');
+            [{ label: tx('Zamknij'), value: null }, { label: '✗ ' + tx('Nie wyszło'), value: 'fail' }, { label: '✓ ' + tx('Sprawdzone'), value: 'ok' }, { label: tx('★ Do ulubionych'), value: 'fav', primary: true }]);
+          if (v === 'fav' || v === 'ok' || v === 'fail') await setStatus(cur, v);
           if (v) close();
         } else toast(tx('Smacznego!'));
         draw();
@@ -1296,6 +1393,10 @@ function renderEdit() {
     const v = await modal(tx('Nowa kategoria'), ni, [{ label: tx('Anuluj'), value: null }, { label: tx('Dodaj'), value: 'ok', primary: true }]);
     if (v && ni.value.trim()) { f.cat.insertBefore(h('option', { value: ni.value.trim() }, ni.value.trim()), f.cat.lastChild); f.cat.value = ni.value.trim(); } else f.cat.value = r.category || '';
   };
+  const subList = h('datalist', { id: 'subsugg' });
+  const fillSubs = () => { subList.innerHTML = ''; subSuggestions(f.cat.value).forEach(x => subList.append(h('option', { value: x }))); };
+  f.sub = h('input', { type: 'text', list: 'subsugg', value: r.subcategory || '', placeholder: tx('np. Serniki') });
+  f.cat.addEventListener('change', fillSubs); setTimeout(fillSubs, 0);
   f.lang = h('select', null, Object.entries(LANGS).map(([k, v]) => h('option', { value: k, selected: r.lang === k ? 'selected' : null }, v)));
   f.ing = h('textarea', { style: 'min-height:200px', placeholder: tx('200 g mąki pszennej\n2 jajka\n1 łyżeczka soli\n# Sos:\n100 ml śmietany'), value: r.ingredients.map(ingredientToLine).join('\n') });
   f.steps = h('textarea', { style: 'min-height:200px', placeholder: tx('Każdy krok w nowej linii'), value: r.steps.join('\n') });
@@ -1313,7 +1414,8 @@ function renderEdit() {
   const form = h('div', { class: 'wrap' }, topBanners(),
     S.pending.length && S.pendingIdx >= 0 ? h('div', { class: 'banner' }, tx('Import: przepis ') + (S.pendingIdx + 1) + tx(' z ') + S.pending.length + tx('. Sprawdź i zapisz.')) : null,
     h('label', { class: 'f' }, tx('Tytuł')), inp('title', { value: r.title, placeholder: tx('np. Pierogi ruskie') }),
-    h('div', { class: 'row' }, h('div', { class: 'grow' }, h('label', { class: 'f' }, tx('Kategoria')), f.cat), h('div', { class: 'grow' }, h('label', { class: 'f' }, tx('Język oryginału')), f.lang)),
+    h('div', { class: 'row' }, h('div', { class: 'grow' }, h('label', { class: 'f' }, tx('Kategoria')), f.cat), h('div', { class: 'grow' }, h('label', { class: 'f' }, tx('Podkategoria')), f.sub, subList)),
+    h('label', { class: 'f' }, tx('Język oryginału')), f.lang,
     h('div', { class: 'row' },
       h('div', { class: 'grow' }, h('label', { class: 'f' }, tx('Porcje')), (f.serv = h('input', { type: 'number', min: '1', value: r.servings || '' }))),
       h('div', { class: 'grow' }, h('label', { class: 'f' }, tx('Przygotowanie')), inp('prep', { value: r.prepTime, placeholder: '20 min' })),
@@ -1332,7 +1434,7 @@ function renderEdit() {
   function collect() {
     const nr = clean(r);
     nr.title = f.title.value.trim() || tx('Bez tytułu');
-    nr.lang = f.lang.value; nr.category = f.cat.value === '__new' ? '' : f.cat.value;
+    nr.lang = f.lang.value; nr.category = f.cat.value === '__new' ? '' : f.cat.value; nr.subcategory = nr.category ? f.sub.value.trim() : '';
     nr.servings = parseFloat(f.serv.value) > 0 ? parseFloat(f.serv.value) : null;
     nr.prepTime = f.prep.value.trim(); nr.cookTime = f.cook.value.trim();
     nr.tags = f.tags.value.split(',').map(s => s.trim()).filter(Boolean);
@@ -1462,7 +1564,7 @@ function renderReview() {
     const simPending = S.pending.filter((x, j) => j !== i).map(x => ({ r: x, s: similarity(r, x) })).filter(x => x.s >= 0.55);
     body.append(h('div', { class: 'panel' },
       h('h3', { style: 'font-size:19px' }, r.title),
-      h('div', { class: 'meta' }, [tx(r.category), (LANGS[r.lang] || r.lang), r.ingredients.filter(x => !x.header).length + tx(' składników'), r.steps.length + tx(' kroków'), r.servings ? servText(r.servings) : tx('brak porcji')].filter(Boolean).join(' · ')),
+      h('div', { class: 'meta' }, [catLabel(r), (LANGS[r.lang] || r.lang), r.ingredients.filter(x => !x.header).length + tx(' składników'), r.steps.length + tx(' kroków'), r.servings ? servText(r.servings) : tx('brak porcji')].filter(Boolean).join(' · ')),
       r.missing && r.missing.length ? h('div', { class: 'warn' }, tx('⚠ Braki: ') + r.missing.join('; ')) : null,
       r.ai && r.ai.hints && r.ai.hints.length ? h('div', null, h('span', { class: 'aitag' }, '✦ ' + r.ai.hints.length + tx(' dopisek/dopiski AI'))) : null,
       sim.length ? h('div', { class: 'dupe' }, tx('⧉ Podobny do: ') + sim.slice(0, 3).map(x => x.r.title + ' (' + Math.round(x.s * 100) + '%)').join(', ')) : null,
@@ -1533,7 +1635,7 @@ function asstRules() {
   const profile = ppl.map(p => `- ${p.name || '(bez imienia)'}: lubi: ${p.likes || '–'}; nie lubi / nie je: ${p.dislikes || '–'}; dieta, alergie: ${p.diet || '–'}`).join('\n') || '- (profil jeszcze pusty)';
   const facts = a.facts.map(f => `- ${f.who ? '[' + f.who + '] ' : ''}${f.text}`).join('\n') || '- (brak)';
   const cat = S.recipes.slice(0, 400).map(r => [r.id, r.title, r.category || '', (r.tags || []).join(','),
-    r.status === 'fav' ? 'ULUBIONY' : r.status === 'try' ? 'do wypróbowania' : '',
+    [r.status === 'fav' ? 'ULUBIONY' : r.status === 'try' ? 'do wypróbowania' : r.status === 'ok' ? 'sprawdzony' : r.status === 'fail' ? 'NIE WYSZEDŁ' : '', (r.flags || []).includes('occasion') ? 'na okazje' : '', (r.flags || []).includes('quick') ? 'szybki' : ''].filter(Boolean).join(', '),
     'składniki: ' + (r.ingredients || []).filter(i => !i.header).slice(0, 12).map(i => String(i.item).split(/[,(]/)[0].trim().slice(0, 25)).join(', ')].join(' | ')).join('\n') || '(brak zapisanych przepisów)';
   const names = ppl.map(p => p.name).filter(Boolean).join(' i ') || 'użytkowniczki i jej partnera';
   const lang = S.settings.ui === 'en' ? 'po angielsku' : 'po polsku';
@@ -1550,7 +1652,7 @@ ZAPISANE PRZEPISY (id | tytuł | kategoria | tagi | oznaczenie | główne skład
 ${cat}
 
 ZASADY:
-1. Najpierw szukaj w zapisanych przepisach. Polecaj je w "saved" (tylko id z listy powyżej, maks. 5) z krótkim powodem dopasowania. Chętnie sięgaj po ULUBIONE i "do wypróbowania", ale nie wyłącznie.
+1. Najpierw szukaj w zapisanych przepisach. Polecaj je w "saved" (tylko id z listy powyżej, maks. 5) z krótkim powodem dopasowania. Chętnie sięgaj po ULUBIONE i "do wypróbowania", ale nie wyłącznie. Nie polecaj przepisów oznaczonych NIE WYSZEDŁ, chyba że użytkownik o nie pyta.
 2. Gdy użytkownik prosi o coś nowego albo nic z zapisanych nie pasuje, zaproponuj 1-3 nowe przepisy w "new": pełne, z ilościami w g, ml, łyżkach, łyżeczkach lub szklankach (nigdy oz ani funty). Nowe przepisy układasz sam: nie twierdź, że pochodzą z internetu, z książki ani od konkretnego autora.
 3. Bezwzględnie przestrzegaj alergii, diet i tego, czego ktoś nie je. Jeśli zapisany przepis wymaga zamiany składnika, napisz to w "why".
 4. Gdy użytkownik poda NOWĄ trwałą informację (np. "nie lubię kolendry", "mamy airfryer", "w tygodniu mamy 30 minut na gotowanie"), dodaj ją do "remember" z "who" = imię osoby lub "oboje". Nie zapamiętuj rzeczy jednorazowych (co jest dziś w lodówce, nastrój dnia). Nie dubluj faktów, które już są wyżej.
@@ -1559,7 +1661,7 @@ ZASADY:
 7. "reply" to krótka wiadomość (maks. ok. 80 słów; możesz użyć **pogrubienia** i listy z "- "). Nie powtarzaj w niej całych przepisów, karty pokażą szczegóły.
 
 Zwróć WYŁĄCZNIE JSON:
-{"reply":string,"saved":[{"id":string,"why":string}],"new":[{"title":string,"why":string,"category":string,"servings":number,"prepTime":string,"cookTime":string,"tags":[string],"ingredients":[string],"steps":[string]}],"remember":[{"who":string,"text":string}]}
+{"reply":string,"saved":[{"id":string,"why":string}],"new":[{"title":string,"why":string,"category":string,"subcategory":string,"servings":number,"prepTime":string,"cookTime":string,"tags":[string],"ingredients":[string],"steps":[string]}],"remember":[{"who":string,"text":string}]}
 "ingredients" to linie typu "200 g mąki". "category" wybierz z: ${CAT_LIST().join(', ')}.`;
 }
 function asstMemo(m) {
@@ -1590,7 +1692,7 @@ async function asstSend(text) {
     const msg = { role: 'assistant', text: String((res && res.reply) || ''), saved: [], new: [], remembered: [], at: Date.now() };
     arr(res && res.saved).forEach(x => { if (x && getR(String(x.id)) && !msg.saved.some(y => y.id === String(x.id))) msg.saved.push({ id: String(x.id), why: String(x.why || '') }); });
     arr(res && res.new).slice(0, 3).forEach(x => {
-      if (x && x.title && Array.isArray(x.ingredients)) msg.new.push({ title: String(x.title), why: String(x.why || ''), category: String(x.category || ''), servings: Number(x.servings) > 0 ? Number(x.servings) : null, prepTime: String(x.prepTime || ''), cookTime: String(x.cookTime || ''), tags: arr(x.tags).map(String).slice(0, 5), ingredients: x.ingredients.map(String), steps: arr(x.steps).map(String) });
+      if (x && x.title && Array.isArray(x.ingredients)) msg.new.push({ title: String(x.title), why: String(x.why || ''), category: String(x.category || ''), subcategory: String(x.subcategory || '').slice(0, 40), servings: Number(x.servings) > 0 ? Number(x.servings) : null, prepTime: String(x.prepTime || ''), cookTime: String(x.cookTime || ''), tags: arr(x.tags).map(String).slice(0, 5), ingredients: x.ingredients.map(String), steps: arr(x.steps).map(String) });
     });
     arr(res && res.remember).slice(0, 5).forEach(x => {
       const t = String((x && x.text) || '').trim();
@@ -1619,7 +1721,7 @@ function mdLite(text) {
 }
 async function saveAiRecipe(msg, n) {
   const r = blankRecipe();
-  Object.assign(r, { title: n.title, lang: S.settings.ui === 'en' ? 'en' : 'pl', category: CAT_LIST().includes(n.category) ? n.category : '', servings: n.servings, prepTime: n.prepTime, cookTime: n.cookTime, tags: n.tags,
+  Object.assign(r, { title: n.title, lang: S.settings.ui === 'en' ? 'en' : 'pl', category: CAT_LIST().includes(n.category) ? n.category : '', subcategory: CAT_LIST().includes(n.category) ? (n.subcategory || '') : '', servings: n.servings, prepTime: n.prepTime, cookTime: n.cookTime, tags: n.tags,
     ingredients: n.ingredients.map(parseIngredientLine).filter(Boolean), steps: n.steps, source: { type: 'ai', name: tx('Asystent AI') }, status: 'try', aiGenerated: true });
   const sim = findSimilar(r, S.recipes, 0.55);
   if (sim.length) {
@@ -1788,7 +1890,7 @@ function toMarkdown(r, lang, factor) {
   const lines = ['# ' + titleIn(r, lang), ''];
   if (r.aiGenerated) lines.push('_✦ ' + lab.aiRecipe + '_', '');
   if (t) lines.push('_' + lab.tr + ' ' + (LANGS[r.lang] || r.lang) + '_', '');
-  const meta = [r.category, r.servings ? servText(r.servings * factor, lang) : '', r.prepTime && lab.prep + ': ' + r.prepTime, r.cookTime && lab.cook + ': ' + r.cookTime].filter(Boolean);
+  const meta = [catLabel(r, false), r.servings ? servText(r.servings * factor, lang) : '', r.prepTime && lab.prep + ': ' + r.prepTime, r.cookTime && lab.cook + ': ' + r.cookTime].filter(Boolean);
   if (meta.length) lines.push(meta.join(' · '), '');
   if (r.tags && r.tags.length) lines.push('Tagi: ' + r.tags.join(', '), '');
   lines.push('## ' + lab.ing, '');
@@ -1821,7 +1923,7 @@ function a5Blocks(item) {
   const { r, lang, factor } = item;
   const t = trOf(r, lang), lab = L[lang] || L.pl, isOrig = lang === r.lang, mode = S.settings.units;
   const blocks = [];
-  const meta = [r.category, r.servings ? servText(r.servings * factor, lang) : '', r.prepTime && lab.prep + ': ' + r.prepTime, r.cookTime && lab.cook + ': ' + r.cookTime].filter(Boolean).join('  ·  ');
+  const meta = [catLabel(r, false), r.servings ? servText(r.servings * factor, lang) : '', r.prepTime && lab.prep + ': ' + r.prepTime, r.cookTime && lab.cook + ': ' + r.cookTime].filter(Boolean).join('  ·  ');
   blocks.push(h('div', null, r.aiGenerated ? h('div', { class: 'trn' }, '✦ ' + lab.aiRecipe) : null, t ? h('div', { class: 'trn' }, '✦ ' + lab.tr + ' ' + (LANGS[r.lang] || r.lang)) : null, h('h1', null, titleIn(r, lang)), meta ? h('div', { class: 'm' }, meta) : null));
   let first = true;
   r.ingredients.forEach((ing, i) => {
@@ -1915,6 +2017,9 @@ window.addEventListener('popstate', (e) => {
   S._pop = true; goto(st.view, st.id); S._pop = false;
 });
 Object.assign(UI_EN, {'Wygląd': 'Appearance', 'Jasny': 'Light', 'Ciemny': 'Dark', 'Systemowy': 'System', 'Systemowy: zmienia się razem z ustawieniem telefonu lub komputera.': 'System: follows the setting of your phone or computer.', 'W tym kroku:': 'In this step:', 'Zapisz lub wyślij plik': 'Save or send the file'});
+Object.assign(UI_EN, {"Wszystkie w kategorii": "All in category", "Kategorie": "Categories", "Wszystkie": "All", "Podkategoria": "Subcategory", "np. Serniki": "e.g. Cheesecakes", "Uzupełnij podkategorie (AI)": "Fill in subcategories (AI)", "Wszystkie przepisy z kategorią mają już podkategorię": "All recipes with a category already have a subcategory", "AI dobiera podkategorie…": "AI is choosing subcategories…", "AI nie zaproponowało podkategorii": "AI did not suggest any subcategories", "Proponowane podkategorie": "Suggested subcategories", "Sprawdź i zatwierdź. Później zmienisz je w edycji przepisu.": "Review and confirm. You can change them later when editing a recipe.", "Zastosuj": "Apply", "Serniki": "Cheesecakes", "Pierniki": "Gingerbread", "Jabłeczniki i szarlotki": "Apple cakes", "Ciasta drożdżowe": "Yeast cakes", "Babki": "Bundt cakes", "Torty": "Layer cakes", "Tarty": "Tarts", "Ciasteczka": "Cookies", "Mięsne": "Meat", "Drób": "Poultry", "Ryby": "Fish", "Wegetariańskie": "Vegetarian", "Makarony": "Pasta", "Pierogi i kluski": "Dumplings", "Kremy": "Cream soups", "Tradycyjne": "Traditional", "Na zimno": "Cold", "Kremy i musy": "Creams & mousses", "Owocowe": "Fruit", "Lody": "Ice cream", "Na słodko": "Sweet", "Na słono": "Savoury", "Z jajek": "Eggs", "Obiadowe": "Main-course", "Do grilla": "For the grill", "Na imprezę": "Party", "Pasty i dipy": "Spreads & dips", "Dżemy": "Jams", "Kiszonki": "Ferments", "Marynaty": "Pickles", "Koktajle": "Smoothies", "Lemoniady": "Lemonades", "Sosy": "Sauces", "Dodatki": "Sides"});
+Object.assign(UI_EN, {"Sprawdzone": "Tried", "Nie wyszło": "Didn't work", "Na okazje": "Special occasions", "Szybkie": "Quick", "Wszystkie kategorie": "All categories"});
+Object.values(DEFAULT_SUBS).flat().forEach(x => CAT_SET.add(x));
 render();
 initStore();
 if (!NATIVE && 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(() => {});

@@ -1,6 +1,7 @@
-node_modules/
-www/
-android/
-dist/
+/node_modules/
+/www/
+/android/
+/dist/
+/dmgroot/
 *.dmg
 *.apk
