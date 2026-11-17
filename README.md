@@ -76,4 +76,5 @@ In the Claude version: **⋯ → Backup (JSON)** (Polish: *Kopia zapasowa (JSON)
   `native/android/debug.keystore` is a fixed signing key so updates install over each other; it is a personal app key, not a secret.
 - Mac: Electron (`electron/`), packaged by electron-builder and ad-hoc signed.
 - `.github/workflows/build.yml` builds both on every push to `main` and creates a Release.
-- The same `index.html` also works as a web app (GitHub Pages) if ever needed.
+- `manifest.webmanifest`, `sw.js` and `icons/` let the same `index.html` also run as an installable web app if ever needed.
+- `scripts/test-links.mjs` + `tests/links.txt`: a GitHub Actions check that recipe websites can be read (results appear as notes on the run).
