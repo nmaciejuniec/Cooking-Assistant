@@ -11,10 +11,10 @@ on:
 permissions:
   contents: write
 
-# A newer push replaces a build that is still waiting.
+# Builds run one after another, so a running Mac build is never cut off by a newer push.
 concurrency:
   group: build-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   android:

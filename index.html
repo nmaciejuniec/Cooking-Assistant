@@ -1097,6 +1097,22 @@ ${JSON.stringify(src)}`, { modelTier: 'default' });
   const fix = (a, n, fb) => { const o = Array.isArray(a) ? a.map(String) : []; return Array.from({ length: n }, (_, i) => o[i] != null ? o[i] : fb[i]); };
   return { title: String(res.title || r.title), items: fix(res.items, src.items.length, src.items), steps: fix(res.steps, src.steps.length, src.steps), hints: fix(res.hints, src.hints.length, src.hints), sig: sig(r), at: Date.now() };
 }
+async function aiSimplifySteps(r) {
+  const res = await ai(`Uprość kroki przygotowania przepisu "${r.title}". Pisz w języku: ${LANGS[r.lang] || r.lang}.
+Zasady:
+- Usuń wstępy, opowieści, reklamy, zachęty i powtórzenia (np. "Poznaj najlepszy przepis…").
+- Każdy krok to jedna konkretna czynność, najwyżej 1-2 krótkie zdania, zaczynające się od czasownika w trybie rozkazującym.
+- Długie akapity podziel na kilka kroków; drobne czynności możesz połączyć.
+- Zachowaj WSZYSTKIE ilości, temperatury, czasy, rozmiary formy i ważne wskazówki (np. "nie otwieraj piekarnika").
+- Nie dodawaj niczego, czego nie ma w oryginale. Zachowaj kolejność.
+Zwróć WYŁĄCZNIE JSON {"steps":[string]}.
+SKŁADNIKI (dla kontekstu): ${(r.ingredients || []).filter(i => !i.header).map(ingredientToLine).join('; ')}
+KROKI:
+${(r.stepsOriginal || r.steps).map((st, i) => (i + 1) + '. ' + st).join('\n')}`);
+  const steps = (res && Array.isArray(res.steps) ? res.steps : []).map(x => String(x).replace(/^\s*\d+[.)]\s*/, '').trim()).filter(Boolean);
+  if (!steps.length) throw new Error(tx('Nie udało się odczytać odpowiedzi. Spróbuj zapytać jeszcze raz.'));
+  return steps;
+}
 async function aiHints(r) {
   const res = await ai(`Oto przepis w formacie JSON. Sprawdź, czy brakuje ISTOTNYCH informacji potrzebnych, żeby go ugotować (np. liczba porcji, czasy, temperatura piekarnika, rozmiar formy, brakujące ilości składników, niejasne kroki).
 Zaproponuj maksymalnie 4 krótkie, konkretne wskazówki w języku "${LANGS[r.lang] || r.lang}". Pisz ostrożnie ("zwykle", "około"), nie wymyślaj szczegółów niepewnych. Jeśli nic istotnego nie brakuje, zwróć pustą listę.
@@ -1392,7 +1408,20 @@ function renderRecipe() {
 
   // steps
   const steps = (t && t.steps) || r.steps;
-  cols.append(h('div', { class: 'panel' }, h('h2', { style: 'font-size:20px;margin-bottom:10px' }, lab.steps),
+  const simpBtn = h('button', { class: 'btn small ai' }, '✦ ' + tx('Uprość kroki'));
+  simpBtn.onclick = async () => {
+    if (!aiReady()) { needKey(); return; }
+    simpBtn.disabled = true; simpBtn.innerHTML = ''; simpBtn.append(h('span', { class: 'spinner' }), ' ' + tx('Upraszczam…'));
+    try {
+      const ns = await aiSimplifySteps(r);
+      const nr = clean(r); if (!nr.stepsOriginal) nr.stepsOriginal = nr.steps; nr.steps = ns; nr.stepsSimplified = true;
+      await saveRecipe(nr); toast(tx('Kroki uproszczone')); render();
+    } catch (e) { toast(e.message, 4000); render(); }
+  };
+  cols.append(h('div', { class: 'panel' }, h('div', { class: 'row', style: 'margin-bottom:10px' }, h('h2', { class: 'grow', style: 'font-size:20px' }, lab.steps),
+      S.canWrite && r.steps.length && !t ? simpBtn : null),
+    r.stepsSimplified ? h('div', { class: 'trbanner', style: 'margin:0 0 10px' }, '✦ ' + tx('Kroki uproszczone przez AI.') + ' ',
+      S.canWrite && r.stepsOriginal ? h('a', { href: '#', onclick: async (e) => { e.preventDefault(); const nr = clean(r); nr.steps = nr.stepsOriginal; delete nr.stepsOriginal; nr.stepsSimplified = false; await saveRecipe(nr); toast(tx('Przywrócono oryginalne kroki')); render(); } }, tx('Przywróć oryginał')) : null) : null,
     steps.length ? h('ol', { class: 'steps' }, steps.map(s => h('li', null, mode === 'metric' ? convertTemps(s) : s))) : h('p', { class: 'hint-small' }, tx('Brak kroków.'))));
 
   // AI hints
@@ -2241,6 +2270,7 @@ Object.assign(UI_EN, {"Nie udało się zapisać zdjęcia na tym urządzeniu": "C
 Object.assign(UI_EN, {"Nie udało się pobrać zdjęcia ze strony. Możesz dodać zdjęcie albo grafikę AI w przepisie.": "Could not download the picture from the page. You can add a photo or an AI picture in the recipe."});
 Object.assign(UI_EN, {'Wersja aplikacji: ': 'App version: '});
 Object.assign(UI_EN, {"Potrzebny klucz API": "API key needed", "Funkcje AI (rozpoznawanie przepisów, tłumaczenia, grafiki, asystent) działają po wpisaniu klucza API Anthropic w Ustawieniach. Klucz tworzysz na console.anthropic.com → API keys.": "AI features (reading recipes, translations, pictures, assistant) work after you enter an Anthropic API key in Settings. Create the key at console.anthropic.com → API keys."});
+Object.assign(UI_EN, {"Uprość kroki": "Simplify steps", "Upraszczam…": "Simplifying…", "Kroki uproszczone": "Steps simplified", "Kroki uproszczone przez AI.": "Steps simplified by AI.", "Przywróć oryginał": "Restore original", "Przywrócono oryginalne kroki": "Original steps restored"});
 Object.values(DEFAULT_SUBS).flat().forEach(x => CAT_SET.add(x));
 render();
 initStore();
