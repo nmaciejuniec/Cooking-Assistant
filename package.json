@@ -1,0 +1,38 @@
+{
+  "name": "cooking-assistant",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Cooking Assistant: our household recipe app",
+  "author": "Nat",
+  "main": "electron/main.js",
+  "scripts": {
+    "www": "node scripts/www.mjs",
+    "mac": "npm run www && electron-builder --mac dir --universal",
+    "start": "npm run www && electron ."
+  },
+  "dependencies": {
+    "@capacitor-community/keep-awake": "8.0.1",
+    "@capacitor/android": "8.6.2",
+    "@capacitor/core": "8.6.2",
+    "@capacitor/filesystem": "8.1.5",
+    "@capacitor/share": "8.0.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.6.2",
+    "electron": "45.3.3",
+    "electron-builder": "26.18.0"
+  },
+  "build": {
+    "appId": "com.nmaciejuniec.cookingassistant",
+    "productName": "Cooking Assistant",
+    "directories": { "output": "dist", "buildResources": "build" },
+    "files": ["electron/**", "www/**", "package.json", "!node_modules/**"],
+    "npmRebuild": false,
+    "mac": {
+      "category": "public.app-category.lifestyle",
+      "icon": "build/icon.png",
+      "identity": null,
+      "target": ["dir"]
+    }
+  }
+}

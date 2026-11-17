@@ -1,0 +1,6 @@
+{
+  "appId": "com.nmaciejuniec.cookingassistant",
+  "appName": "Cooking Assistant",
+  "webDir": "www",
+  "android": { "allowMixedContent": false }
+}

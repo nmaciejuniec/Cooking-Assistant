@@ -1,0 +1,103 @@
+# Builds the Android app (APK) and the Mac app (DMG) on every push to main,
+# and publishes both as a GitHub Release (see the Releases section of the repo).
+name: Build apps
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Install
+        run: npm ci
+      - name: Copy web app
+        run: node scripts/www.mjs
+      - name: Create Android project
+        run: npx cap add android
+      - name: App icon, version, fixed signing key
+        run: |
+          cp -r native/android/res/* android/app/src/main/res/
+          sed -i "s/versionCode 1$/versionCode ${{ github.run_number }}/; s/versionName \"1.0\"/versionName \"1.0.${{ github.run_number }}\"/" android/app/build.gradle
+          grep -n "versionCode\|versionName" android/app/build.gradle
+          mkdir -p ~/.android
+          cp native/android/debug.keystore ~/.android/debug.keystore
+      - name: Sync plugins
+        run: npx cap sync android
+      - name: Build APK
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+      - name: Collect APK
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk CookingAssistant.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: CookingAssistant.apk
+
+  mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Copy web app
+        run: node scripts/www.mjs
+      - name: Build app (Apple Silicon + Intel)
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: npx electron-builder --mac dir --universal --publish never -c.extraMetadata.version=1.0.${{ github.run_number }}
+      - name: Sign locally (ad-hoc) and make DMG
+        run: |
+          APP="$(ls -d dist/mac-universal/*.app | head -1)"
+          echo "App: $APP"
+          codesign --force --deep --sign - "$APP"
+          codesign --verify --verbose "$APP"
+          mkdir dmgroot
+          cp -R "$APP" dmgroot/
+          ln -s /Applications dmgroot/Applications
+          hdiutil create -volname "Cooking Assistant" -srcfolder dmgroot -ov -format UDZO CookingAssistant.dmg
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mac
+          path: CookingAssistant.dmg
+
+  release:
+    needs: [android, mac]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: Cooking Assistant 1.0.${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          make_latest: true
+          body: |
+            Download:
+            - **CookingAssistant.apk**: Android tablet / phone
+            - **CookingAssistant.dmg**: Mac (Apple Silicon and Intel)
+
+            Installation steps are in the README.
+          files: |
+            out/android/CookingAssistant.apk
+            out/mac/CookingAssistant.dmg
