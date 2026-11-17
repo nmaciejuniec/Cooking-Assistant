@@ -9,7 +9,7 @@
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Source+Sans+3:wght@400;600;700&family=DM+Serif+Display&family=Courier+Prime:wght@400;700&family=Special+Elite&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Source+Sans+3:wght@400;600;700&family=DM+Serif+Display&family=Courier+Prime:wght@400;700&family=Cormorant+SC:wght@600;700&display=swap" rel="stylesheet">
 <style>
 :root{
   --bg:#FBF7F0; --card:#FFFFFF; --ink:#2B2622; --muted:#7A6F66; --line:#E8DFD3;
@@ -147,48 +147,104 @@ label.f{display:block;font-size:13px;font-weight:600;color:var(--muted);margin:1
   .rhead .noimg{flex:1;flex-direction:column;justify-content:center;text-align:center}
 }
 
-/* ===== Retro recipe-card style (default) ===== */
+/* ===== Retro recipe-card style (default): one ink colour, framed card, labelled boxes, ruled lines ===== */
 :root[data-style="retro"]{
-  --bg:#F3EAD7; --card:#FBF6EA; --surface:#FFFDF6; --ink:#3A2E28; --muted:#86725F; --line:#DCCBAE;
-  --accent:#C2502F; --accent-soft:#F1D9C9; --ai:#3F6774; --ai-bg:#E4EDEF; --ai-line:#93B2BC;
-  --hover-line:#BFA985; --hdr:rgba(243,234,215,.95); --bar:rgba(251,246,234,.97);
-  --banner-bg:#F7E6B8; --banner-line:#D9B25A; --tag-fg:#8E3B22; --green-bg:#DDE7D2; --green-fg:#3D6435;
-  --gold-bg:#F6E1A8; --gold-line:#D19A2A; --radius:8px; --retro-red:#C2502F; --retro-mustard:#D9A13B; --retro-teal:#2F7470;
+  --c:#3E7B4F; --c-line:rgba(62,123,79,.35); --c-soft:#E4EEE5;
+  --bg:#ECE9E1; --card:#F9F7F2; --surface:#FFFEFA; --ink:#2D2A26; --muted:#6F6A60; --line:#D6D1C4; --on-ink:#fff;
+  --accent:var(--c); --accent-soft:var(--c-soft); --hover-line:var(--c); --hdr:rgba(236,233,225,.95); --bar:rgba(249,247,242,.97);
+  --tag-fg:var(--c); --radius:12px;
 }
+:root[data-style="retro"][data-ink="red"]{--c:#A63D38; --c-line:rgba(166,61,56,.32); --c-soft:#F4E2DF; --bg:#EBDDD9; --hdr:rgba(235,221,217,.95); --card:#FAF5F3}
+:root[data-style="retro"][data-ink="brown"]{--c:#7B4F2E; --c-line:rgba(123,79,46,.33); --c-soft:#F0E5DA; --bg:#EDE4D6; --hdr:rgba(237,228,214,.95); --card:#FBF7F0}
 :root[data-style="retro"][data-theme="dark"]{
-  --bg:#1D1814; --card:#28211B; --surface:#2F2720; --ink:#EFE2C8; --muted:#B19E86; --line:#463A2F; --on-ink:#1D1814;
-  --accent:#D9714E; --accent-soft:#4A2D22; --ai:#9CC2CC; --ai-bg:#22313A; --ai-line:#4E6E7B; --hover-line:#6A5948;
-  --hdr:rgba(29,24,20,.94); --bar:rgba(40,33,27,.97); --banner-bg:#3E3218; --banner-line:#7E6427; --tag-fg:#F0B79F;
-  --green-bg:#233320; --green-fg:#A8CE9C; --gold-bg:#463818; --gold-line:#97762C;
+  --c:#8CC79A; --c-line:rgba(140,199,154,.3); --c-soft:#243A2A;
+  --bg:#171815; --card:#20211D; --surface:#262722; --ink:#ECE8DD; --muted:#A8A396; --line:#3A3B35; --on-ink:#171815;
+  --hdr:rgba(23,24,21,.94); --bar:rgba(32,33,29,.97);
 }
-:root[data-style="retro"] body{background-color:var(--bg);background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .35 0 0 0 0 .26 0 0 0 0 .16 0 0 0 .08 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>")}
-:root[data-style="retro"] h1,:root[data-style="retro"] h2,:root[data-style="retro"] h3,:root[data-style="retro"] .brand,:root[data-style="retro"] .tree-h,:root[data-style="retro"] .cook-h{font-family:"DM Serif Display",Georgia,serif;font-weight:400;letter-spacing:.01em}
-:root[data-style="retro"] .brand{font-size:24px;text-transform:uppercase;letter-spacing:.06em}
-:root[data-style="retro"] .brand::after{content:"";display:block;height:3px;width:56px;background:linear-gradient(90deg,var(--retro-red) 0 33%,var(--retro-mustard) 33% 66%,var(--retro-teal) 66%);margin-top:3px;border-radius:2px}
-:root[data-style="retro"] .rtitle{font-size:38px;line-height:1.05}
-:root[data-style="retro"] .panel{border:1.5px solid var(--line);box-shadow:3px 3px 0 var(--line);border-radius:6px}
-:root[data-style="retro"] .panel h2{display:inline-block;border-bottom:2px solid var(--accent);padding-bottom:2px}
-:root[data-style="retro"] .card{border:1.5px solid var(--line);box-shadow:3px 3px 0 var(--line);border-radius:6px;border-top:6px solid var(--retro-red)}
-:root[data-style="retro"] .card:nth-child(3n+2){border-top-color:var(--retro-mustard)}
-:root[data-style="retro"] .card:nth-child(3n+3){border-top-color:var(--retro-teal)}
-:root[data-style="retro"] .card.withimg{border-top-width:1.5px}
-:root[data-style="retro"] .card h3{font-size:21px}
-:root[data-style="retro"] .ing li,:root[data-style="retro"] ol.steps li,:root[data-style="retro"] .cook .body,:root[data-style="retro"] .cook label.chk,:root[data-style="retro"] .cook .stepcard,:root[data-style="retro"] .cook .alls li,:root[data-style="retro"] .needchip{font-family:"Courier Prime","Courier New",monospace}
-:root[data-style="retro"] .ing li{border-bottom:1px solid var(--line)}
-:root[data-style="retro"] ol.steps li::marker{font-family:"DM Serif Display",serif;color:var(--accent);font-size:1.15em}
-:root[data-style="retro"] .meta,:root[data-style="retro"] .fact .lb,:root[data-style="retro"] .tag,:root[data-style="retro"] .stattag,:root[data-style="retro"] .aitag,:root[data-style="retro"] .hint-small{font-family:"Special Elite","Courier Prime",monospace}
-:root[data-style="retro"] .tag{border:1px solid var(--tag-fg);background:transparent;border-radius:3px;text-transform:lowercase}
-:root[data-style="retro"] .fact .vl{font-family:"DM Serif Display",serif;font-size:20px;font-weight:400}
-:root[data-style="retro"] .facts{border-top:2px dashed var(--line);border-bottom:2px dashed var(--line)}
-:root[data-style="retro"] .btn,:root[data-style="retro"] .chip,:root[data-style="retro"] .seg{border-radius:6px}
-:root[data-style="retro"] .btn.primary{box-shadow:2px 2px 0 var(--ink)}
-:root[data-style="retro"] .seg button.on,:root[data-style="retro"] .chip.on,:root[data-style="retro"] .tnode.on{background:var(--accent);color:#fff;border-color:var(--accent)}
-:root[data-style="retro"] .asstbtn{border-radius:6px;border-style:dashed;font-family:"DM Serif Display",serif;font-weight:400;font-size:18px}
-:root[data-style="retro"] .hero,:root[data-style="retro"] .noimg{border-radius:6px}
-:root[data-style="retro"] .hero{border:6px solid var(--surface);box-shadow:3px 3px 0 var(--line),0 1px 6px rgba(0,0,0,.08);transform:rotate(.6deg)}
-:root[data-style="retro"] .tree{border-radius:6px;box-shadow:3px 3px 0 var(--line)}
-:root[data-style="retro"] .modal{border-radius:10px 10px 0 0}
-@media (min-width:700px){:root[data-style="retro"] .modal{border-radius:10px}}
+:root[data-style="retro"][data-theme="dark"][data-ink="red"]{--c:#E88F86; --c-line:rgba(232,143,134,.3); --c-soft:#43231F}
+:root[data-style="retro"][data-theme="dark"][data-ink="brown"]{--c:#D3A57E; --c-line:rgba(211,165,126,.3); --c-soft:#3D2E21}
+:root[data-style="retro"] body{background-color:var(--bg)}
+:root[data-style="retro"] h1,:root[data-style="retro"] h2,:root[data-style="retro"] h3,:root[data-style="retro"] .cook-h{font-family:"DM Serif Display",Georgia,serif;font-weight:400}
+:root[data-style="retro"] .brand,:root[data-style="retro"] .tree-h,:root[data-style="retro"] .panel h2{font-family:"Cormorant SC",Georgia,serif;font-weight:700;color:var(--c);letter-spacing:.05em}
+:root[data-style="retro"] .brand{font-size:30px;line-height:1}
+:root[data-style="retro"] .panel{border:1.5px solid var(--c);border-radius:12px;box-shadow:none}
+:root[data-style="retro"] .card{border:1.5px solid var(--c);border-radius:12px;box-shadow:none}
+:root[data-style="retro"] .card:hover{border-color:var(--c);box-shadow:0 2px 0 var(--c)}
+:root[data-style="retro"] .card h3{font-size:21px;padding-bottom:6px;margin-bottom:8px;border-bottom:1.5px solid var(--c)}
+:root[data-style="retro"] .card .thumb{border-bottom:1.5px solid var(--c)}
+:root[data-style="retro"] .tree{border:1.5px solid var(--c);border-radius:12px}
+:root[data-style="retro"] .meta,:root[data-style="retro"] .tag,:root[data-style="retro"] .stattag,:root[data-style="retro"] .aitag,:root[data-style="retro"] .ing li,:root[data-style="retro"] ol.steps li,:root[data-style="retro"] .notes,:root[data-style="retro"] .cook .body,:root[data-style="retro"] .cook label.chk,:root[data-style="retro"] .cook .stepcard,:root[data-style="retro"] .cook .alls li,:root[data-style="retro"] .needchip{font-family:"Courier Prime","Courier New",monospace}
+:root[data-style="retro"] .tag{border:1px solid var(--c);color:var(--c);background:transparent;border-radius:3px}
+:root[data-style="retro"] .btn.primary,:root[data-style="retro"] .seg button.on,:root[data-style="retro"] .chip.on,:root[data-style="retro"] .tnode.on{background:var(--c);color:var(--on-ink);border-color:var(--c)}
+:root[data-style="retro"] .seg,:root[data-style="retro"] .btn,:root[data-style="retro"] .chip,:root[data-style="retro"] input,:root[data-style="retro"] textarea,:root[data-style="retro"] select{border-color:var(--c-line)}
+:root[data-style="retro"] .asstbtn{border:1.5px dashed var(--c);background:var(--c-soft);color:var(--c);border-radius:12px;font-family:"DM Serif Display",serif;font-weight:400;font-size:18px}
+/* the recipe card */
+.rcard{background:var(--card);border:2px solid var(--c);border-radius:14px;margin-top:14px;overflow:hidden}
+.rcard>div{border-top:1.5px solid var(--c)}
+.rcard>div:first-child{border-top:none}
+.rc-lb{font-family:"Cormorant SC",Georgia,serif;font-weight:700;color:var(--c);font-size:17px;letter-spacing:.03em;margin-right:6px}
+.rc-lb::first-letter{text-transform:uppercase}
+.rc-img .hero.svg{background:transparent}
+.rc-v{font-family:"Courier Prime","Courier New",monospace}
+.rc-top{display:grid;grid-template-columns:auto minmax(0,1fr)}
+.rc-brand{font-family:"Cormorant SC",Georgia,serif;font-weight:700;color:var(--c);font-size:36px;line-height:1;letter-spacing:.04em;padding:16px 22px;border-right:1.5px solid var(--c);display:flex;align-items:center;text-transform:uppercase}
+.rc-title{padding:14px 18px;min-width:0}
+.rc-title .rtitle{margin:0 0 6px;font-size:32px;line-height:1.1}
+.rc-title .statrow{margin:4px 0 0!important}
+.rc-row,.rc-row4{display:grid}
+.rc-row{grid-template-columns:minmax(0,2fr) minmax(0,1.3fr) minmax(0,1fr)}
+.rc-row4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.rc-cell{padding:9px 14px;border-left:1.5px solid var(--c);min-width:0;overflow-wrap:anywhere}
+.rc-cell:first-child{border-left:none}
+.rc-mid{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr)}
+.rc-mid.noi{grid-template-columns:1fr}
+.rc-sec{display:grid;grid-template-columns:44px minmax(0,1fr)}
+.rc-vlab{writing-mode:vertical-rl;transform:rotate(180deg);font-family:"Cormorant SC",Georgia,serif;font-weight:700;color:var(--c);font-size:21px;letter-spacing:.1em;text-transform:uppercase;padding:14px 10px;text-align:end;white-space:nowrap}
+.rc-body{padding:12px 18px 14px 4px;min-width:0}
+.rc-tools{display:flex;justify-content:flex-end;margin-bottom:6px}
+.rc-img{border-left:1.5px solid var(--c);display:flex;align-items:stretch;padding:14px;min-height:220px}
+.rc-img>*{flex:1;margin:0!important}
+.rc-img .hero{transform:none;border:none;box-shadow:none;border-radius:8px;display:flex}
+.rc-img .hero img{height:100%;max-height:420px;object-fit:cover;flex:1}
+.rc-img .hero.svg img{object-fit:contain}
+.rc-img .noimg{border:1.5px dashed var(--c-line);border-radius:8px;flex-direction:column;justify-content:center;text-align:center}
+.rcard .ing li{border-bottom:1px solid var(--c-line)}
+.rcard .ing li:last-child{border-bottom:none}
+.rcard ol.steps{padding-left:24px}
+.rcard ol.steps li{border-bottom:1px solid var(--c-line);padding:4px 0 10px 4px;margin:0 0 8px}
+.rcard ol.steps li:last-child{border-bottom:none;margin-bottom:0}
+.rcard ol.steps li::marker{font-family:"DM Serif Display",serif;color:var(--c);font-size:1.15em}
+.rc-notes{padding:10px 16px 14px;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:4px 8px;align-items:start}
+.rc-notes .rc-lb{line-height:28px}
+.rc-notes>*:not(.rc-lb):not(.row){grid-column:1/-1}
+.rc-notes .notes{margin:0!important;line-height:28px;background-image:repeating-linear-gradient(transparent 0 27px,var(--c-line) 27px 28px);white-space:pre-wrap}
+.rc-notes .hint-small{margin:0;line-height:28px;background-image:repeating-linear-gradient(transparent 0 27px,var(--c-line) 27px 28px);min-height:56px}
+@media (max-width:640px){
+  .rc-top{grid-template-columns:1fr}
+  .rc-brand{border-right:none;border-bottom:1.5px solid var(--c);font-size:24px;padding:10px 16px}
+  .rc-title .rtitle{font-size:27px}
+  .rc-row{grid-template-columns:1fr}
+  .rc-row .rc-cell{border-left:none;border-top:1.5px solid var(--c)}
+  .rc-row .rc-cell:first-child{border-top:none}
+  .rc-row4{grid-template-columns:1fr 1fr}
+  .rc-row4 .rc-cell:nth-child(n+3){border-top:1.5px solid var(--c)}
+  .rc-row4 .rc-cell:nth-child(3){border-left:none}
+  .rc-mid{grid-template-columns:1fr}
+  .rc-img{border-left:none;border-bottom:1.5px solid var(--c);order:-1;min-height:0}
+  .rc-sec{grid-template-columns:1fr}
+  .rc-vlab{writing-mode:horizontal-tb;transform:none;text-align:start;padding:12px 16px 0;font-size:19px}
+  .rc-body{padding:4px 16px 14px}
+}
+/* A5 page in card style */
+.a5.rc h1{font-family:"DM Serif Display",Georgia,serif;font-weight:400;font-size:25px;color:#2D2A26}
+.a5.rc h4{font-family:"Cormorant SC",Georgia,serif;font-weight:700;font-size:15px;color:var(--pc);letter-spacing:.08em;border-bottom:1.2px solid var(--pc);padding-bottom:2px}
+.a5.rc .i{border-bottom:.6px solid var(--pcl);font-family:"Courier Prime","Courier New",monospace}
+.a5.rc .s{font-family:"Courier Prime","Courier New",monospace;border-bottom:.6px solid var(--pcl);padding-bottom:4px}
+.a5.rc .s .n{color:var(--pc)}
+.a5.rc .m{font-family:"Courier Prime","Courier New",monospace}
+.a5.rc .pimg{border-radius:8px}
+.a5 .frame{position:absolute;border:1.4px solid var(--pc);border-radius:12px}
+.a5 .pbrand{font-family:"Cormorant SC",Georgia,serif;font-weight:700;font-size:13px;letter-spacing:.12em;color:var(--pc);text-transform:uppercase}
 .empty{text-align:center;color:var(--muted);padding:50px 10px}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--surface)}
 .seg button{border:none;background:none;padding:6px 12px;cursor:pointer;font-size:14px}
@@ -728,7 +784,7 @@ const S = {
   recipes: [], loaded: false, db: null, local: false, canWrite: true,
   view: 'list', id: null, q: '', cat: '', sort: 'new',
   viewLang: {}, servings: {}, tempTr: {}, pending: [], pendingIdx: -1, editing: null,
-  settings: { units: 'orig', binder: true, compact: false, prefLang: '', ui: 'pl', theme: 'system', style: 'retro' },
+  settings: { units: 'orig', binder: true, compact: false, prefLang: '', ui: 'pl', theme: 'system', style: 'retro', ink: 'green' },
   sample: null, sampleImages: false, downloads: null, note: '',
 };
 try { Object.assign(S.settings, JSON.parse(localStorage.getItem('cookingAssistant.settings') || '{}')); } catch (e) { }
@@ -742,6 +798,7 @@ function applyTheme() {
   try { if (t === 'system') dark = window.matchMedia('(prefers-color-scheme: dark)').matches; } catch (e) { }
   document.documentElement.dataset.theme = dark ? 'dark' : 'light';
   document.documentElement.dataset.style = S.settings.style || 'retro';
+  document.documentElement.dataset.ink = S.settings.ink || 'green';
   const m = document.querySelector('meta[name=theme-color]'); if (m) m.content = dark ? '#181513' : '#B5532E';
 }
 applyTheme();
@@ -945,11 +1002,17 @@ async function fetchImage(url) {
   else throw new Error('image');
   return shrinkToDataUrl('data:' + String(type).split(';')[0] + ';base64,' + b64);
 }
+const INKS = { green: '#3E7B4F', red: '#A63D38', brown: '#7B4F2E' };
 async function aiDrawImage(r) {
   const ings = (r.ingredients || []).filter(i => !i.header).slice(0, 8).map(i => i.item).join(', ');
+  const retro = (S.settings.style || 'retro') === 'retro';
+  const inkHex = INKS[S.settings.ink || 'green'] || INKS.green;
+  const style = retro
+    ? `Styl: vintage rycina botaniczna, jak ilustracja na starej karcie z przepisem. Rysunek kreskowy w JEDNYM kolorze ${inkHex}: cienkie linie (stroke) i kreskowanie dla cieni, bez innych kolorów, bez kolorowego tła (tło przezroczyste). Pokaż główny składnik potrawy (np. warzywo, owoc, zioło) albo samo danie, jeden wyraźny motyw na środku. Bez tekstu, bez ludzi.`
+    : null;
   const res = await ai(`Narysuj prostą ilustrację potrawy "${r.title}" (główne składniki: ${ings || 'brak'}) jako kod SVG.
-Styl: płaska ilustracja wektorowa, miękkie zaokrąglone kształty, pastelowe ciepłe kolory, bez konturów albo z bardzo cienkimi, delikatne cienie z półprzezroczystych kształtów, jasne kremowe tło (#FBF7F0), danie na talerzu lub w naczyniu widoczne z boku lub z góry, kilka składników obok jako dekoracja. Bez tekstu, bez ludzi.
-Wymagania techniczne: viewBox="0 0 400 300", width i height nieustawione, najwyżej 70 elementów, tylko kształty (path, circle, ellipse, rect, polygon, g, defs, linearGradient, radialGradient, stop), bez <script>, bez obrazów, bez linków, bez czcionek.
+${style || `Styl: płaska ilustracja wektorowa, miękkie zaokrąglone kształty, pastelowe ciepłe kolory, bez konturów albo z bardzo cienkimi, delikatne cienie z półprzezroczystych kształtów, jasne kremowe tło (#FBF7F0), danie na talerzu lub w naczyniu widoczne z boku lub z góry, kilka składników obok jako dekoracja. Bez tekstu, bez ludzi.`}
+Wymagania techniczne: viewBox="0 0 400 300", width i height nieustawione, najwyżej ${style ? 120 : 70} elementów, tylko kształty (path, circle, ellipse, rect, polygon, g, defs, linearGradient, radialGradient, stop), bez <script>, bez obrazów, bez linków, bez czcionek.
 Zwróć WYŁĄCZNIE JSON {"svg": "<svg ...>...</svg>"}.`, { modelTier: 'default' });
   let svg = String((res && res.svg) || '').trim();
   if (!/^<svg[\s>]/i.test(svg) || !/<\/svg>\s*$/i.test(svg)) throw new Error(tx('AI nie zwróciło poprawnej grafiki. Spróbuj jeszcze raz.'));
@@ -1105,7 +1168,8 @@ function renderSettings() {
           h('button', { class: (S.settings.theme || 'system') === k ? 'on' : '', onclick: () => { S.settings.theme = k; saveSettings(); applyTheme(); render(); } }, l))),
         h('div', { class: 'seg' }, ['pl', 'en'].map(k => h('button', { class: S.settings.ui === k ? 'on' : '', onclick: () => { S.settings.ui = k; saveSettings(); render(); } }, k === 'pl' ? 'Polski' : 'English')))),
       h('p', { class: 'hint-small' }, tx('Systemowy: zmienia się razem z ustawieniem telefonu lub komputera.')),
-      h('div', { class: 'row wrapflex', style: 'margin-top:8px' }, h('span', { class: 'hint-small' }, tx('Styl:')), h('div', { class: 'seg' }, [['retro', tx('Retro')], ['modern', tx('Nowoczesny')]].map(([k, l]) => h('button', { class: (S.settings.style || 'retro') === k ? 'on' : '', onclick: () => { S.settings.style = k; saveSettings(); applyTheme(); render(); } }, l))))),
+      h('div', { class: 'row wrapflex', style: 'margin-top:8px' }, h('span', { class: 'hint-small' }, tx('Styl:')), h('div', { class: 'seg' }, [['retro', tx('Retro')], ['modern', tx('Nowoczesny')]].map(([k, l]) => h('button', { class: (S.settings.style || 'retro') === k ? 'on' : '', onclick: () => { S.settings.style = k; saveSettings(); applyTheme(); render(); } }, l)))),
+      (S.settings.style || 'retro') === 'retro' ? h('div', { class: 'row wrapflex', style: 'margin-top:8px' }, h('span', { class: 'hint-small' }, tx('Kolor karty:')), h('div', { class: 'seg' }, [['green', tx('Zielony')], ['red', tx('Czerwony')], ['brown', tx('Brązowy')]].map(([k, l]) => h('button', { class: (S.settings.ink || 'green') === k ? 'on' : '', onclick: () => { S.settings.ink = k; saveSettings(); applyTheme(); render(); } }, l)))) : null),
     h('div', { class: 'panel' }, h('h2', { style: 'font-size:19px' }, '✦ ' + tx('AI (klucz API Anthropic)')),
       h('p', { class: 'hint-small' }, tx(NATIVE ? 'Klucz jest zapisany tylko w aplikacji na tym urządzeniu. Nie trafia do pliku synchronizacji. Bez klucza aplikacja działa, ale bez funkcji AI.' : 'Klucz jest zapisany tylko w tej przeglądarce na tym urządzeniu. Nie trafia do kodu ani do pliku synchronizacji. Bez klucza aplikacja działa, ale bez funkcji AI.')),
       h('label', { class: 'f' }, tx('Klucz API')), h('div', { class: 'row' }, keyIn, h('button', { class: 'btn small', onclick: () => { keyIn.type = keyIn.type === 'password' ? 'text' : 'password'; } }, '👁')),
@@ -1442,6 +1506,25 @@ async function listMenu() {
 }
 
 // ---- recipe view ----
+function timeMinutes(v) {
+  const s = String(v || '').trim().toLowerCase();
+  if (!s) return 0;
+  if (/[-–]|\bdo\b|\bto\b|\bpo\b/.test(s)) return null; // ranges: no guessing
+  const iso = s.match(/^p(?:t)?(?:(\d+)h)?(?:(\d+)m)?$/);
+  if (iso && (iso[1] || iso[2])) return (+iso[1] || 0) * 60 + (+iso[2] || 0);
+  if (/^\d+$/.test(s)) return +s;
+  let m = 0, ok = false;
+  const hr = s.match(/(\d+(?:[.,]\d+)?)\s*(?:h|godz\w*|hours?|hrs?|timer?|time|t)\b/); if (hr) { m += parseFloat(hr[1].replace(',', '.')) * 60; ok = true; }
+  const mi = s.match(/(\d+)\s*(?:min\w*|m)\b/); if (mi) { m += +mi[1]; ok = true; }
+  return ok ? Math.round(m) : null;
+}
+function totalTime(a, b) {
+  if (!a || !b) return '';
+  const x = timeMinutes(a), y = timeMinutes(b);
+  if (x == null || y == null) return '';
+  const t = x + y; if (!t) return '';
+  return t >= 60 ? Math.floor(t / 60) + ' h' + (t % 60 ? ' ' + (t % 60) + ' min' : '') : t + ' min';
+}
 function renderRecipe() {
   const r = getR(S.id);
   if (!r) { goto('list'); return; }
@@ -1493,16 +1576,16 @@ function renderRecipe() {
     body.append(h('div', { class: 'noimg' }, h('span', { class: 'hint-small' }, tx('Brak obrazka')), h('div', { class: 'row wrapflex' }, h('button', { class: 'btn small', onclick: () => imgInput.click() }, '📷 ' + tx('Dodaj zdjęcie')), webBtn(), drawBtn())), imgInput);
   }
   body.append(h('h1', { class: 'rtitle' }, (t && t.title) || r.title));
-  if (r.aiGenerated) body.append(h('div', { class: 'trbanner' }, '✦ ' + tx('Ten przepis wymyśliło AI (asystent). Nie pochodzi ze sprawdzonego źródła, więc sprawdź ilości i czasy.')));
-  if (S.canWrite) body.append(h('div', { class: 'row wrapflex', style: 'margin:4px 0 8px' },
+  if (r.aiGenerated) body.append(h('div', { class: 'trbanner aigen' }, '✦ ' + tx('Ten przepis wymyśliło AI (asystent). Nie pochodzi ze sprawdzonego źródła, więc sprawdź ilości i czasy.')));
+  if (S.canWrite) body.append(h('div', { class: 'row wrapflex statrow', style: 'margin:4px 0 8px' },
     Object.entries(STATUS).map(([k, st]) => h('button', { class: 'btn small statbtn' + (r.status === k ? ' on' : ''), title: r.status === k ? tx('Kliknij, aby usunąć oznaczenie') : '', onclick: () => setStatus(r, r.status === k ? '' : k) }, st.icon + ' ' + tx(st.label) + (r.status === k ? '  ✕' : ''))),
     Object.entries(FLAGS).map(([k, st]) => { const on = (r.flags || []).includes(k); return h('button', { class: 'btn small statbtn' + (on ? ' on' : ''), onclick: () => toggleFlag(r, k) }, st.icon + ' ' + tx(st.label) + (on ? '  ✕' : '')); })));
-  else if (r.status || (r.flags || []).length) body.append(h('div', null, r.status ? h('span', { class: 'stattag' }, STATUS[r.status].icon + ' ' + tx(STATUS[r.status].label)) : null, (r.flags || []).filter(k => FLAGS[k]).map(k => h('span', { class: 'stattag flag' }, FLAGS[k].icon + ' ' + tx(FLAGS[k].label)))));
+  else if (r.status || (r.flags || []).length) body.append(h('div', { class: 'statrow' }, r.status ? h('span', { class: 'stattag' }, STATUS[r.status].icon + ' ' + tx(STATUS[r.status].label)) : null, (r.flags || []).filter(k => FLAGS[k]).map(k => h('span', { class: 'stattag flag' }, FLAGS[k].icon + ' ' + tx(FLAGS[k].label)))));
   const fact = (ic, label, val) => val ? h('div', { class: 'fact' }, h('div', { class: 'ic' }, ic), h('div', { class: 'lb' }, label), h('div', { class: 'vl' }, val)) : null;
   const facts = (r.prepTime || r.cookTime || r.servings) ? h('div', { class: 'facts' },
     fact('⏱', lab.prep, r.prepTime), fact('♨', lab.cook, r.cookTime), fact('🍴', lab.servings, r.servings ? String(curServ) : '')) : null;
-  body.append(h('div', { class: 'meta' }, catLabel(r)),
-    h('div', null, (r.tags || []).map(x => h('span', { class: 'tag' }, x))));
+  body.append(h('div', { class: 'meta catline' }, catLabel(r)),
+    h('div', { class: 'tagline' }, (r.tags || []).map(x => h('span', { class: 'tag' }, x))));
   if (r.source && (r.source.url || r.source.name)) {
     body.append(h('div', { class: 'meta', style: 'margin-top:4px' }, lab.source + ': ',
       r.source.url ? h('a', { href: r.source.url, target: '_blank', rel: 'noopener' }, r.source.name || hostOf(r.source.url)) : r.source.name));
@@ -1525,10 +1608,10 @@ function renderRecipe() {
       : h('span', { class: 'hint-small' }, tx('Brak liczby porcji: dodaj ją w edycji, żeby skalować.')),
     h('div', { class: 'seg' }, [['orig', tx('Oryginalne')], ['metric', 'g / ml'], ['household', tx('Szklanki i łyżki')]].map(([k, l]) =>
       h('button', { class: mode === k ? 'on' : '', onclick: () => { S.settings.units = k; saveSettings(); render(); } }, l)))));
-  if (factor !== 1) body.append(h('div', { class: 'hint-small', style: 'margin-top:6px' }, tx('Przeliczone ×') + fmtNum(factor, 'pl') + tx('. Czasy i rozmiar formy w krokach mogą wymagać zmiany.')));
+  if (factor !== 1) body.append(h('div', { class: 'hint-small factorhint', style: 'margin-top:6px' }, tx('Przeliczone ×') + fmtNum(factor, 'pl') + tx('. Czasy i rozmiar formy w krokach mogą wymagać zmiany.')));
 
   // ingredients
-  const ingPanel = h('div', { class: 'panel' }, h('h2', { style: 'font-size:20px;margin-bottom:6px' }, lab.ing));
+  const ingPanel = h('div', { class: 'panel ingpanel' }, h('h2', { style: 'font-size:20px;margin-bottom:6px' }, lab.ing));
   let anyApprox = false;
   if (!r.ingredients.length) ingPanel.append(h('p', { class: 'hint-small' }, tx('Brak składników.')));
   ingPanel.append(h('ul', { class: 'ing' }, r.ingredients.map((ing, i) => {
@@ -1555,7 +1638,7 @@ function renderRecipe() {
       await saveRecipe(nr); toast(tx('Kroki uproszczone')); render();
     } catch (e) { toast(e.message, 4000); render(); }
   };
-  cols.append(h('div', { class: 'panel' }, h('div', { class: 'row', style: 'margin-bottom:10px' }, h('h2', { class: 'grow', style: 'font-size:20px' }, lab.steps),
+  cols.append(h('div', { class: 'panel stepspanel' }, h('div', { class: 'row', style: 'margin-bottom:10px' }, h('h2', { class: 'grow', style: 'font-size:20px' }, lab.steps),
       S.canWrite && r.steps.length && !t ? simpBtn : null),
     r.stepsSimplified ? h('div', { class: 'trbanner', style: 'margin:0 0 10px' }, '✦ ' + tx('Kroki uproszczone przez AI.') + ' ',
       S.canWrite && r.stepsOriginal ? h('a', { href: '#', onclick: async (e) => { e.preventDefault(); const nr = clean(r); nr.steps = nr.stepsOriginal; delete nr.stepsOriginal; nr.stepsSimplified = false; await saveRecipe(nr); toast(tx('Przywrócono oryginalne kroki')); render(); } }, tx('Przywróć oryginał')) : null) : null,
@@ -1581,11 +1664,35 @@ function renderRecipe() {
   body.append(aibox);
 
   // notes
-  const notesPanel = h('div', { class: 'panel' }, h('div', { class: 'row' }, h('h2', { class: 'grow', style: 'font-size:20px' }, lab.notes),
+  const notesPanel = h('div', { class: 'panel notespanel' }, h('div', { class: 'row' }, h('h2', { class: 'grow', style: 'font-size:20px' }, lab.notes),
     S.canWrite ? h('button', { class: 'btn small', onclick: () => editNotes(r, notesPanel) }, r.notes ? tx('Edytuj') : tx('Dodaj')) : null),
     r.notes ? h('div', { class: 'notes', style: 'margin-top:8px' }, r.notes) : h('p', { class: 'hint-small' }, tx('Twoje zmiany, wrażenia, co następnym razem zrobić inaczej.')));
   body.append(notesPanel);
-  body.append(h('p', { class: 'hint-small', style: 'margin-top:14px' }, tx('Dodano ') + new Date(r.createdAt || Date.now()).toLocaleDateString(S.settings.ui === 'en' ? 'en-GB' : 'pl-PL') + (r.updatedAt && r.updatedAt !== r.createdAt ? tx(' · zmieniono ') + new Date(r.updatedAt).toLocaleDateString(S.settings.ui === 'en' ? 'en-GB' : 'pl-PL') : '')));
+  body.append(h('p', { class: 'hint-small dateline', style: 'margin-top:14px' }, tx('Dodano ') + new Date(r.createdAt || Date.now()).toLocaleDateString(S.settings.ui === 'en' ? 'en-GB' : 'pl-PL') + (r.updatedAt && r.updatedAt !== r.createdAt ? tx(' · zmieniono ') + new Date(r.updatedAt).toLocaleDateString(S.settings.ui === 'en' ? 'en-GB' : 'pl-PL') : '')));
+
+  if ((S.settings.style || 'retro') === 'retro') {
+    const q = sel => body.querySelector(sel);
+    const rhead = q('.rhead'), title = q('.rinfo .rtitle'), statrow = q('.rinfo .statrow'), aigen = q('.rinfo .aigen'), tagsEl = q('.rinfo .tagline');
+    const imgEl = q('.rhead .rimg > *');
+    const ingP = q('.ingpanel'), stP = q('.stepspanel'), noP = q('.notespanel'), colsEl = q('.cols'), dateP = q('.dateline');
+    const dash = '–', loc = S.settings.ui === 'en' ? 'en-GB' : 'pl-PL';
+    const cell = (lbl, v) => h('div', { class: 'rc-cell' }, h('span', { class: 'rc-lb' }, lbl), h('span', { class: 'rc-v' }, v));
+    const srcV = r.source && (r.source.url || r.source.name) ? (r.source.url ? h('a', { href: r.source.url, target: '_blank', rel: 'noopener' }, r.source.name || hostOf(r.source.url)) : r.source.name) : dash;
+    ingP.querySelector('h2').remove();
+    const stHead = stP.firstElementChild; stHead.querySelector('h2').remove();
+    if (!stHead.children.length) stHead.remove(); else { stHead.removeAttribute('style'); stHead.className = 'rc-tools'; }
+    noP.querySelector('h2').remove();
+    const sec = (cls, label, nodes) => h('div', { class: cls }, h('div', { class: 'rc-vlab' }, label), h('div', { class: 'rc-body' }, nodes));
+    const card = h('div', { class: 'rcard' },
+      h('div', { class: 'rc-top' }, h('div', { class: 'rc-brand' }, tx('Przepis')), h('div', { class: 'rc-title' }, title, tagsEl && tagsEl.children.length ? tagsEl : null, statrow)),
+      h('div', { class: 'rc-row' }, cell(lab.source + ':', srcV), cell(tx('Kategoria:'), catLabel(r) || dash), cell(tx('Data:'), new Date(r.createdAt || Date.now()).toLocaleDateString(loc))),
+      h('div', { class: 'rc-row4' }, cell(lab.prep + ':', r.prepTime || dash), cell(lab.cook + ':', r.cookTime || dash), cell(tx('Razem:'), totalTime(r.prepTime, r.cookTime) || dash), cell(lab.servings + ':', r.servings ? String(curServ) : dash)),
+      h('div', { class: 'rc-mid' + (imgEl ? '' : ' noi') }, sec('rc-sec', lab.ing, Array.from(ingP.childNodes)), imgEl ? h('div', { class: 'rc-img' }, imgEl) : null),
+      sec('rc-sec rc-steps', lab.steps, Array.from(stP.childNodes)),
+      h('div', { class: 'rc-notes' }, h('span', { class: 'rc-lb' }, lab.notes + ':'), Array.from(noP.childNodes)));
+    if (aigen) rhead.replaceWith(aigen); else rhead.remove();
+    colsEl.replaceWith(card); noP.remove(); if (dateP) dateP.remove();
+  }
 
   const bar = h('div', { class: 'actionbar' }, h('div', { class: 'inner' },
     h('button', { class: 'btn primary', onclick: () => cookMode(r) }, tx('👩‍🍳 Gotuj')),
@@ -2307,7 +2414,7 @@ function a5Blocks(item) {
   const t = trOf(r, lang), lab = L[lang] || L.pl, isOrig = lang === r.lang, mode = S.settings.units;
   const blocks = [];
   const meta = [catLabel(r, false), r.servings ? servText(r.servings * factor, lang) : '', r.prepTime && lab.prep + ': ' + r.prepTime, r.cookTime && lab.cook + ': ' + r.cookTime].filter(Boolean).join('  ·  ');
-  blocks.push(h('div', null, S.imgs[r.id] ? h('div', { class: 'pimg', style: 'background-image:url("' + imgSrc(r.id).replace(/"/g, '%22') + '")' }) : null, r.aiGenerated ? h('div', { class: 'trn' }, '✦ ' + lab.aiRecipe) : null, t ? h('div', { class: 'trn' }, '✦ ' + lab.tr + ' ' + (LANGS[r.lang] || r.lang)) : null, h('h1', null, titleIn(r, lang)), meta ? h('div', { class: 'm' }, meta) : null));
+  blocks.push(h('div', null, (S.settings.style || 'retro') === 'retro' ? h('div', { class: 'pbrand' }, ({ en: 'Recipe', da: 'Opskrift' })[lang] || 'Przepis') : null, S.imgs[r.id] ? h('div', { class: 'pimg', style: 'background-image:url("' + imgSrc(r.id).replace(/"/g, '%22') + '")' }) : null, r.aiGenerated ? h('div', { class: 'trn' }, '✦ ' + lab.aiRecipe) : null, t ? h('div', { class: 'trn' }, '✦ ' + lab.tr + ' ' + (LANGS[r.lang] || r.lang)) : null, h('h1', null, titleIn(r, lang)), meta ? h('div', { class: 'm' }, meta) : null));
   let first = true;
   r.ingredients.forEach((ing, i) => {
     const name = (t && t.items && t.items[i]) || ing.item;
@@ -2335,7 +2442,9 @@ function paginate(items, stage) {
     const { blocks, title, hasAi, lab } = a5Blocks(it);
     const recPages = [];
     const newPage = () => {
-      const pg = h('div', { class: 'a5' + (S.settings.compact ? ' compact' : '') });
+      const rc = (S.settings.style || 'retro') === 'retro', pc = INKS[S.settings.ink || 'green'] || INKS.green;
+      const pg = h('div', { class: 'a5' + (S.settings.compact ? ' compact' : '') + (rc ? ' rc' : ''), style: rc ? `--pc:${pc};--pcl:${pc}55` : '' });
+      if (rc) pg.append(h('div', { class: 'frame', style: `top:${top - Math.round(5 * mm)}px;bottom:${bottom - Math.round(5 * mm)}px;left:${inner - Math.round(5 * mm)}px;right:${outer - Math.round(5 * mm)}px` }));
       const body = h('div', { class: 'body', style: `top:${top}px;bottom:${bottom}px;left:${inner}px;right:${outer}px` });
       const foot = h('div', { class: 'foot', style: `left:${inner}px;right:${outer}px` });
       pg.append(body, foot); stage.append(pg); recPages.push({ pg, body, foot }); return body;
@@ -2411,6 +2520,7 @@ Object.assign(UI_EN, {"Potrzebny klucz API": "API key needed", "Funkcje AI (rozp
 Object.assign(UI_EN, {"Uprość kroki": "Simplify steps", "Upraszczam…": "Simplifying…", "Kroki uproszczone": "Steps simplified", "Kroki uproszczone przez AI.": "Steps simplified by AI.", "Przywróć oryginał": "Restore original", "Przywrócono oryginalne kroki": "Original steps restored"});
 Object.assign(UI_EN, {"Szklanki i łyżki": "Cups & spoons", "szklanki i łyżki": "cups & spoons", "≈ przeliczenie gramów na szklanki i łyżki jest orientacyjne (zależy od produktu i sposobu nabierania).": "≈ converting grams to cups and spoons is approximate (depends on the product and how it is measured)."});
 Object.assign(UI_EN, {"Styl:": "Style:", "Retro": "Retro", "Nowoczesny": "Modern"});
+Object.assign(UI_EN, {"Przepis": "Recipe", "Kategoria:": "Category:", "Data:": "Date:", "Razem:": "Total:", "Kolor karty:": "Card colour:", "Zielony": "Green", "Czerwony": "Red", "Brązowy": "Brown"});
 Object.values(DEFAULT_SUBS).flat().forEach(x => CAT_SET.add(x));
 render();
 initStore();
