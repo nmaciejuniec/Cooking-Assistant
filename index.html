@@ -32,6 +32,7 @@
 }
 :root[data-theme="dark"] img.icon-img{opacity:.9}
 *{box-sizing:border-box}
+input[type=checkbox]{accent-color:var(--accent)}
 html,body{margin:0;background:var(--bg);color:var(--ink);font-family:"Source Sans 3",system-ui,sans-serif;font-size:16px;line-height:1.45}
 button,input,select,textarea{font:inherit;color:inherit}
 h1,h2,h3{font-family:Fraunces,Georgia,serif;font-weight:700;margin:0;line-height:1.15}
@@ -180,6 +181,7 @@ ol.steps li{margin:0 0 12px;padding-left:4px}
 .cook .cook-sub{font-weight:700;margin-top:10px;font-size:16px;color:var(--muted)}
 .cook label.chk.now{background:var(--accent-soft);border-radius:8px;padding-left:6px;padding-right:6px}
 .cook .need{margin:4px 0 14px}
+.cook .cookthumb{width:52px;height:52px;border-radius:10px;object-fit:cover;flex:none}
 .cook .needchip{background:var(--accent-soft);border-radius:999px;padding:6px 12px;font-size:17px}
 .cook .alls{padding-left:24px;margin:8px 0 0;border-top:1px solid var(--line);padding-top:12px}
 .cook .alls li.cur{font-weight:700}
@@ -669,6 +671,7 @@ function clean(o) { return JSON.parse(JSON.stringify(o)); }
 
 // ---- storage ----
 // ================= STANDALONE: storage, AI via Anthropic API, sync =================
+const APP_VERSION = '__APP_VERSION__';
 const NATIVE = (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) ? 'android' : ((window.native && window.native.platform) || '');
 const CAP = (n) => (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins[n]) || null;
 const MODELS = { 'claude-sonnet-5-5': 'Claude Sonnet 5.5', 'claude-haiku-5-5': 'Claude Haiku 5.5' };
@@ -995,6 +998,7 @@ function renderSettings() {
         h('button', { class: 'btn primary', onclick: () => exportFile(JSON.stringify(syncPayload(true)), 'recipes-sync-' + stamp() + '.json') }, tx('Zapisz plik synchronizacji')),
         h('button', { class: 'btn', onclick: () => fi.click() }, tx('Wczytaj i scal plik')), fi)),
     h('div', { class: 'panel' }, h('h2', { style: 'font-size:19px' }, tx('Dane na tym urządzeniu')),
+      h('p', { class: 'hint-small' }, tx('Wersja aplikacji: ') + (APP_VERSION.startsWith('__') ? 'web' : APP_VERSION) + (NATIVE ? ' (' + (NATIVE === 'android' ? 'Android' : 'Mac') + ')' : '')),
       h('p', { class: 'hint-small' }, S.recipes.length + ' ' + tx('przepisów') + ' · ' + (NATIVE === 'android' ? tx('dane są zapisane w aplikacji; odinstalowanie jej albo „Wyczyść dane” w ustawieniach Androida je usuwa, więc rób czasem plik synchronizacji jako kopię') : NATIVE ? tx('dane są zapisane w aplikacji i zostają przy aktualizacjach; rób czasem plik synchronizacji jako kopię') : S.persisted ? tx('przeglądarka nie usunie danych automatycznie') : tx('przeglądarka może usunąć dane przy braku miejsca: rób czasem plik synchronizacji jako kopię')))));
   app.append(head, body);
 }
@@ -1488,7 +1492,10 @@ async function cookMode(r) {
   const steps = (t && t.steps) || r.steps;
   const names = r.ingredients.map((ing, i) => ing.header ? null : ((t && t.items && t.items[i]) || ing.item));
   let idx = 0;
-  const done = new Set(), got = new Set();
+  const done = new Set(), got = new Set(), autoGot = new Map();
+  // Finishing a step ticks off its ingredients; un-finishing it un-ticks the ones it ticked.
+  const finish = (i) => { done.add(i); const add = stepIngredients(steps[i], names).filter(k => !got.has(k)); add.forEach(k => got.add(k)); autoGot.set(i, add); };
+  const unfinish = (i) => { done.delete(i); (autoGot.get(i) || []).forEach(k => got.delete(k)); autoGot.delete(i); };
   let lock = null;
   try {
     if (NATIVE === 'android' && CAP('KeepAwake')) { await CAP('KeepAwake').keepAwake(); lock = { release: () => CAP('KeepAwake').allowSleep() }; }
@@ -1503,11 +1510,13 @@ async function cookMode(r) {
     const lab = L[S.settings.ui] || L.pl;
     const used = steps.length ? stepIngredients(steps[idx], names) : [];
     ov.append(h('div', { class: 'head' },
+      S.imgs[r.id] ? h('img', { class: 'cookthumb', src: imgSrc(r.id), alt: '' }) : null,
       h('div', { class: 'grow', style: 'font-family:Fraunces,serif;font-size:20px;font-weight:700' }, titleIn(r, lang)),
       factor !== 1 ? h('span', { class: 'hint-small' }, servText(S.servings[r.id], S.settings.ui)) : null,
       h('button', { class: 'iconbtn', onclick: close, title: tx('Zamknij') }, '✕')));
     // ingredients: always visible
-    const ingCol = h('div', { class: 'cook-ing' }, h('div', { class: 'cook-h' }, lab.ing));
+    const ingTotal = r.ingredients.filter(x => !x.header).length;
+    const ingCol = h('div', { class: 'cook-ing' }, h('div', { class: 'cook-h' }, lab.ing, ingTotal ? h('span', { class: 'hint-small', style: 'font-family:inherit;font-weight:400;margin-left:8px' }, got.size + '/' + ingTotal) : null));
     r.ingredients.forEach((ing, i) => {
       if (ing.header) { ingCol.append(h('div', { class: 'cook-sub' }, names[i] || ing.item)); return; }
       const cb = h('input', { type: 'checkbox', checked: got.has(i), onchange: () => { got.has(i) ? got.delete(i) : got.add(i); draw(); } });
@@ -1519,7 +1528,7 @@ async function cookMode(r) {
     if (!steps.length) stepCol.append(h('p', null, tx('Brak kroków.')));
     else {
       stepCol.append(h('div', { class: 'hint-small' }, tx('Krok ') + (idx + 1) + tx(' z ') + steps.length),
-        h('div', { class: 'stepcard' + (done.has(idx) ? ' done' : ''), onclick: () => { done.has(idx) ? done.delete(idx) : done.add(idx); draw(); } }, mode === 'metric' ? convertTemps(steps[idx]) : steps[idx]));
+        h('div', { class: 'stepcard' + (done.has(idx) ? ' done' : ''), onclick: () => { done.has(idx) ? unfinish(idx) : finish(idx); draw(); } }, mode === 'metric' ? convertTemps(steps[idx]) : steps[idx]));
       if (used.length) stepCol.append(h('div', { class: 'need' }, h('div', { class: 'hint-small', style: 'margin-bottom:6px' }, tx('W tym kroku:')),
         h('div', { class: 'row wrapflex' }, used.map(i => h('span', { class: 'needchip' }, h('b', null, qtyOf(i)), ' ', names[i])))));
       stepCol.append(h('ol', { class: 'alls' }, steps.map((s, i) => h('li', { class: (done.has(i) ? 'done' : '') + (i === idx ? ' cur' : ''), onclick: () => { idx = i; draw(); } }, mode === 'metric' ? convertTemps(s) : s))));
@@ -1530,7 +1539,7 @@ async function cookMode(r) {
     if (steps.length) ov.append(h('div', { class: 'foot' },
       h('button', { class: 'btn', disabled: idx === 0, onclick: () => { idx--; draw(); } }, tx('← Wstecz')),
       h('button', { class: 'btn primary', onclick: async () => {
-        done.add(idx);
+        finish(idx);
         if (idx < steps.length - 1) { idx++; draw(); return; }
         const cur = getR(r.id) || r;
         if (S.canWrite && cur.status !== 'fav') {
@@ -1722,7 +1731,8 @@ function renderImport() {
         if (!res || !res.length) { status.append(h('div', { class: 'banner' }, tx('Nie znalazłam przepisu na tej stronie. Skopiuj tekst i wklej poniżej.'))); fetchBtn.disabled = false; return; }
         res.forEach(r => { r.source = Object.assign({}, r.source, { url: u, name: (r.source && r.source.name) || hostOf(u), type: 'link' }); });
         const picUrl = pageImage(html, u);
-        if (picUrl) { setBusy(tx('Pobieram zdjęcie ze strony…')); try { const data = await fetchImage(picUrl); res.forEach(r => { r._img = { data, kind: 'web' }; }); } catch (e) { } }
+        if (picUrl) { setBusy(tx('Pobieram zdjęcie ze strony…')); try { const data = await fetchImage(picUrl); res.forEach(r => { r._img = { data, kind: 'web' }; }); } catch (e) { toast(tx('Nie udało się pobrać zdjęcia ze strony. Możesz dodać zdjęcie albo grafikę AI w przepisie.'), 4500); } }
+        else toast(tx('Na stronie nie ma zdjęcia przepisu'), 3000);
         S.pending = res; goto('review');
       } catch (e) { setBusy(''); status.innerHTML = ''; status.append(h('div', { class: 'banner' }, e.message || String(e))); fetchBtn.disabled = false; }
     };
@@ -2222,6 +2232,8 @@ Object.assign(UI_EN, {"Sprawdzone": "Tried", "Nie wyszło": "Didn't work", "Na o
 Object.assign(UI_EN, {"Link musi zaczynać się od https://": "The link must start with https://", "Pobieranie stron działa tylko w aplikacji na Androida i na Maca.": "Fetching pages only works in the Android and Mac apps.", "Ta strona nie pozwoliła pobrać przepisu": "This website did not allow the recipe to be fetched", "Skopiuj tekst i wklej poniżej.": "Copy the text and paste it below.", "Pobierz przepis": "Fetch recipe", "Wklej link do przepisu": "Paste a recipe link", "Pobieram stronę…": "Fetching the page…", "AI porządkuje przepis…": "AI is tidying up the recipe…", "Na tej stronie nie ma danych przepisu, a do odczytania tekstu potrzebne jest AI (klucz API w Ustawieniach).": "This page has no recipe data, and reading its text needs AI (API key in Settings).", "Nie znalazłam przepisu na tej stronie. Skopiuj tekst i wklej poniżej.": "No recipe found on this page. Copy the text and paste it below.", "Z linku: ": "From a link: ", "wklej link i kliknij „Pobierz przepis”. Jeśli strona nie pozwoli go pobrać, skopiuj tekst przepisu i wklej go niżej.": "paste the link and tap “Fetch recipe”. If the website does not allow it, copy the recipe text and paste it below.", "Link do przepisu": "Recipe link", "…albo wklej tekst przepisu": "…or paste the recipe text"});
 Object.assign(UI_EN, {"Nie udało się zapisać danych na tym urządzeniu": "Could not save data on this device", "Klucz jest zapisany tylko w aplikacji na tym urządzeniu. Nie trafia do pliku synchronizacji. Bez klucza aplikacja działa, ale bez funkcji AI.": "The key is stored only in the app on this device. It is never put in the sync file. Without a key the app works, just without AI features.", "dane są zapisane w aplikacji; odinstalowanie jej albo „Wyczyść dane” w ustawieniach Androida je usuwa, więc rób czasem plik synchronizacji jako kopię": "data is stored in the app; uninstalling it or “Clear data” in Android settings deletes it, so save a sync file now and then as a backup", "dane są zapisane w aplikacji i zostają przy aktualizacjach; rób czasem plik synchronizacji jako kopię": "data is stored in the app and kept through updates; save a sync file now and then as a backup", "Ekran może się wygaszać: to urządzenie nie pozwala go zablokować": "The screen may dim: this device does not allow keeping it on", "Bez klucza API rozpoznawanie przepisów ze zdjęć, plików i wklejonego tekstu nie działa. Działają: pobieranie z linku (gdy strona ma zapisane dane przepisu), zapisana strona .html, plik synchronizacji .json i dodawanie ręczne. Klucz dodasz w Ustawieniach.": "Without an API key, reading recipes from photos, files and pasted text does not work. Still working: fetching from a link (when the page contains recipe data), a saved .html page, a .json sync file and manual entry. Add a key in Settings.", "Profil i pamięć asystenta są zapisane na tym urządzeniu i trafiają do pliku synchronizacji. Rozmowy zostają tylko tutaj.": "The assistant profile and memory are stored on this device and included in the sync file. Chats stay on this device only.", "Dodaj pierwszy przepis z linku, zdjęcia, pliku albo wpisz go ręcznie.": "Add your first recipe from a link, a photo, a file, or type it in."});
 Object.assign(UI_EN, {"Nie udało się zapisać zdjęcia na tym urządzeniu": "Could not save the picture on this device", "Nie udało się odczytać zdjęcia": "Could not read the picture", "AI nie zwróciło poprawnej grafiki. Spróbuj jeszcze raz.": "AI did not return a valid picture. Try again.", "Pobieram zdjęcie ze strony…": "Fetching the picture from the page…", "Grafika AI": "AI picture", "Rysuję…": "Drawing…", "Na stronie nie ma zdjęcia przepisu": "The page has no recipe picture", "Nie udało się pobrać zdjęcia": "Could not download the picture", "Zdjęcie ze strony": "Picture from the page", "grafika AI": "AI picture", "Zmień": "Change", "Brak obrazka": "No picture", "Dodaj zdjęcie": "Add photo", "Grafiki AI dla przepisów bez obrazka": "AI pictures for recipes without one", "Wszystkie przepisy mają obrazek": "All recipes have a picture", "Grafiki AI": "AI pictures", "Claude narysuje prostą grafikę dla przepisów bez obrazka: ": "Claude will draw a simple picture for recipes without one: ", "Każda grafika to jedno zapytanie do API (płatne z Twojego klucza). Możesz przerwać w każdej chwili.": "Each picture is one API request (paid from your key). You can stop at any time.", "Rysuj": "Draw", "Przerwij": "Stop", "Rysuję": "Drawing", "Gotowe: ": "Done: "});
+Object.assign(UI_EN, {"Nie udało się pobrać zdjęcia ze strony. Możesz dodać zdjęcie albo grafikę AI w przepisie.": "Could not download the picture from the page. You can add a photo or an AI picture in the recipe."});
+Object.assign(UI_EN, {'Wersja aplikacji: ': 'App version: '});
 Object.values(DEFAULT_SUBS).flat().forEach(x => CAT_SET.add(x));
 render();
 initStore();
