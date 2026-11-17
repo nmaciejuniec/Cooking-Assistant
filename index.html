@@ -126,7 +126,9 @@ label.f{display:block;font-size:13px;font-weight:600;color:var(--muted);margin:1
 .hero.svg{background:#FBF7F0}
 .hero.svg img{object-fit:contain;height:300px}
 .herotag{position:absolute;left:10px;top:10px;background:var(--ai-bg);color:var(--ai);border:1px dashed var(--ai-line);border-radius:999px;padding:2px 10px;font-size:12px}
-.heroacts{position:absolute;right:10px;bottom:10px;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.heroacts{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;padding:8px;background:var(--card);border-top:1px solid var(--line)}
+.hero{display:flex;flex-direction:column}
+.hero img{flex:1;min-height:0}
 .noimg{margin-top:14px;border:2px dashed var(--line);border-radius:var(--radius);padding:12px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
 .a5 .pimg{height:130px;border-radius:6px;background-size:cover;background-position:center;margin-bottom:10px}
 .rhead{display:grid;gap:16px;margin-top:14px}
@@ -187,6 +189,7 @@ label.f{display:block;font-size:13px;font-weight:600;color:var(--muted);margin:1
 :root[data-style="retro"] .fact .vl{font-family:"Courier Prime","Courier New",monospace;font-weight:700}
 :root[data-style="retro"] .rhead .hero,:root[data-style="retro"] .rhead .noimg{border-radius:10px}
 :root[data-style="retro"] .rhead .hero{border:1.5px solid var(--c)}
+:root[data-style="retro"] .heroacts{border-top-color:var(--c-line)}
 :root[data-style="retro"] .rhead .noimg{border:1.5px dashed var(--c-line)}
 :root[data-style="retro"] .panel{border-width:2px;border-radius:14px}
 :root[data-style="retro"] .panel h2{font-size:22px!important;padding-bottom:4px;border-bottom:1.5px solid var(--c);margin-bottom:8px}
@@ -205,7 +208,7 @@ label.f{display:block;font-size:13px;font-weight:600;color:var(--muted);margin:1
 :root[data-style="retro"] .onecard .notespanel{border-top:1.5px solid var(--c)}
 @media (min-width:700px){
   :root[data-style="retro"] .onecard .rhead{grid-template-columns:minmax(0,1fr) minmax(0,300px)}
-  :root[data-style="retro"] .onecard .rhead .hero,:root[data-style="retro"] .onecard .rhead .hero img{min-height:0;max-height:230px}
+  :root[data-style="retro"] .onecard .rhead .hero img{min-height:0;max-height:220px}
   :root[data-style="retro"] .onecard .rhead .rimg{align-items:flex-start}
   :root[data-style="retro"] .onecard .rhead .noimg{min-height:200px}
 }
