@@ -2475,7 +2475,7 @@ function ensureTick() {
     for (const t of TIMERS.list) {
       if (t.running && timerLeft(t) <= 0) { t.running = false; t.left = 0; t.done = true; ring(t); }
       const el = document.querySelector('.tchip[data-id="' + t.id + '"]');
-      if (el) { const l = timerLeft(t); el.querySelector('.tv').textContent = fmtClock(l); el.classList.toggle('hot', !!((t.running && l <= 10) || t.done)); }
+      if (el) { const l = timerLeft(t); el.querySelector('.tv').textContent = fmtClock(l); el.classList.toggle('hot', !!((t.running && l <= 30) || t.done)); }
     }
   }, 250);
 }
