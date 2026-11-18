@@ -133,7 +133,9 @@ label.f{display:block;font-size:13px;font-weight:600;color:var(--muted);margin:1
 .hero{display:flex;flex-direction:column}
 .hero img{flex:1;min-height:0}
 .noimg{margin-top:14px;border:2px dashed var(--line);border-radius:var(--radius);padding:12px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
-.a5 .pimg{height:130px;border-radius:6px;background-size:cover;background-position:center;margin-bottom:10px}
+.a5 .phead{display:flex;gap:14px;align-items:flex-start;margin-bottom:6px}
+.a5 .phead .pinfo{flex:1;min-width:0}
+.a5 .pimg{width:36%;flex:none;aspect-ratio:4/3;border-radius:6px;background-size:cover;background-position:center}
 .rhead{display:grid;gap:16px;margin-top:14px}
 .rhead .rimg{order:-1}
 .rhead .hero,.rhead .noimg{margin-top:0}
@@ -230,6 +232,11 @@ label.f{display:block;font-size:13px;font-weight:600;color:var(--muted);margin:1
 .a5.rc .s .n{color:var(--pc)}
 .a5.rc .m{font-family:"Courier Prime","Courier New",monospace}
 .a5.rc .pimg{border-radius:8px}
+/* the picture always fills its frame: fixed 4:3 box, image covers it */
+.rhead .hero{display:block!important;position:relative;width:100%;aspect-ratio:4/3;min-height:0!important;flex:none!important}
+.rhead .hero img,.rhead .hero.svg img{position:absolute;inset:0;width:100%;height:100%!important;min-height:0!important;max-height:none!important;object-fit:cover}
+.rhead .rimg{align-items:flex-start!important}
+@media (min-width:700px){:root[data-style="retro"] .onecard .rhead .hero{max-height:250px;margin-left:auto}}
 .lanchip{border:1px solid var(--accent);color:var(--accent);background:transparent;border-radius:999px;padding:4px 10px;font-size:13px;cursor:pointer;margin-right:8px;white-space:nowrap;max-width:46vw;overflow:hidden;text-overflow:ellipsis}
 .qrbox{width:230px;max-width:70vw;margin:10px auto;background:#fff;padding:6px;border-radius:10px;border:1.5px solid var(--accent)}
 .qrbox svg{display:block;width:100%;height:auto}
@@ -3022,7 +3029,10 @@ function a5Blocks(item) {
   const t = trOf(r, lang), lab = L[lang] || L.pl, isOrig = lang === r.lang, mode = S.settings.units;
   const blocks = [];
   const meta = [catLabel(r, false), r.servings ? servText(r.servings * factor, lang) : '', r.prepTime && lab.prep + ': ' + r.prepTime, r.cookTime && lab.cook + ': ' + r.cookTime].filter(Boolean).join('  ·  ');
-  blocks.push(h('div', null, S.imgs[r.id] ? h('div', { class: 'pimg', style: 'background-image:url("' + imgSrc(r.id).replace(/"/g, '%22') + '")' }) : null, r.aiGenerated ? h('div', { class: 'trn' }, '✦ ' + lab.aiRecipe) : null, t ? h('div', { class: 'trn' }, '✦ ' + lab.tr + ' ' + (LANGS[r.lang] || r.lang)) : null, h('h1', null, titleIn(r, lang)), meta ? h('div', { class: 'm' }, meta) : null));
+  // like the app: title and details on the left, a smaller picture on the right
+  blocks.push(h('div', { class: 'phead' },
+    h('div', { class: 'pinfo' }, r.aiGenerated ? h('div', { class: 'trn' }, '✦ ' + lab.aiRecipe) : null, t ? h('div', { class: 'trn' }, '✦ ' + lab.tr + ' ' + (LANGS[r.lang] || r.lang)) : null, h('h1', null, titleIn(r, lang)), meta ? h('div', { class: 'm' }, meta) : null),
+    S.imgs[r.id] ? h('div', { class: 'pimg', style: 'background-image:url("' + imgSrc(r.id).replace(/"/g, '%22') + '")' }) : null));
   let first = true;
   r.ingredients.forEach((ing, i) => {
     const name = (t && t.items && t.items[i]) || ing.item;
