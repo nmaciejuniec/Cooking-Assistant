@@ -2554,7 +2554,7 @@ const WAKE_RE = /\b(?:hej|hey|hi|ej|haj|hejka)?\s*(?:cooking|kuking|kukin|cookin
 const VCMD = [
   ['next', /\b(dalej|nastepn\w*|kolejn\w*|next|naeste|nest|videre)\b/],
   ['prev', /\b(wstecz|poprzedni\w*|cofnij|wroc|back|previous|tilbage|forrige)\b/],
-  ['timer', /\b(start\w*|wlacz\w*|uruchom\w*|odpal\w*|begin|set)\b.*\b(minutnik\w*|timer\w*|stoper)\b|\b(minutnik\w*|timer)\b.*\b(start|wlacz)\b/],
+  ['timer', /\b(start\w*|wlacz\w*|uruchom\w*|odpal\w*|begin|set)\b.*\b(minutnik\w*|timer\w*|stoper)\b|\b(minutnik\w*|timer)\b.*\b(start|wlacz)\b|^\s*(start\w*|startuj|minutnik\w*|timer\w*|stoper|odpal|go)\s*$/],
   ['left', /\b(ile zostalo|ile czasu|zostalo|how much time|time left|how long|hvor lang tid|tid tilbage|tilbage tid)\b/],
   ['stop', /\b(stop|wylacz\w*|zatrzymaj\w*|cisza|sluk|stands|quiet)\b/],
   ['ings', /\b(skladnik\w*|ingredien\w*|ingrediens\w*)\b/],
@@ -2580,7 +2580,7 @@ function voiceTrans(raw, state) {
   if (raw != null) {
     const H = VOICE.hist || (VOICE.hist = []); const a = normalize(raw), b = normalize(H[H.length - 1] || '');
     if (H.length && (a.startsWith(b) || b.startsWith(a) || Date.now() - (VOICE.lastHeard || 0) < 700)) H[H.length - 1] = raw; else H.push(raw);
-    if (H.length > 3) H.shift(); VOICE.lastHeard = Date.now(); VOICE.heard = raw;
+    if (H.length > 1) H.shift(); VOICE.lastHeard = Date.now(); VOICE.heard = raw;
   }
   if (state) VOICE.state = state;
   const el = document.querySelector('.vtrans'); if (!el) return;
