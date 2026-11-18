@@ -9,6 +9,8 @@ There is one release, **Cooking Assistant** (tag `latest`), under **Releases** o
 - [`CookingAssistant.dmg`](../../releases/latest/download/CookingAssistant.dmg) for Mac (Apple Silicon and Intel)
 
 Every change to the app builds new files that replace the old ones, so the links above always give the newest version.
+The build before is kept as `CookingAssistant-previous.apk` / `CookingAssistant-previous.dmg`, in case a new version has a problem
+(installing the previous APK over a newer one needs uninstalling first, so save a sync file before).
 The release notes show when each file was built. The Mac file can be one build behind for a while,
 because GitHub's Mac machines are sometimes busy. The build date is also shown in the app under **⚙ Settings → Data on this device**.
 
@@ -76,4 +78,5 @@ Merging keeps the newest version of each recipe and never overwrites with an old
 - Android signing: repository secrets `ANDROID_KEYSTORE_BASE64` (the keystore) and `ANDROID_KEYSTORE_PASSWORD` (alias `cookingassistant`).
   The build checks the certificate (SHA-256 `7C:90:6D:B2:…:1D:2D:40`) so every build installs over the previous one.
   Keep a private copy of the keystore and its password: without them, updates cannot be installed over the app.
+- `release.sh` keeps one previous APK and DMG next to the newest ones.
 - `scripts/test-links.mjs` + `tests/links.txt`: a GitHub Actions check that recipe websites can be read.

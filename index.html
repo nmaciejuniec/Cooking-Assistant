@@ -24,7 +24,7 @@
 :root[data-theme="dark"]{
   color-scheme:dark;
   --bg:#181513; --card:#221E1B; --surface:#2A2522; --ink:#EEE7E0; --muted:#A99E94; --line:#3A332F;
-  --accent:#C9653D; --accent-soft:#3B2A22; --ok:#7FBF91; --on-ink:#181513;
+  --accent:#C9653D; --accent-soft:#3B2A22; --ok:#7FBF91; --on-ink:#181513; --on-accent:#1A1410;
   --ai:#C3AEEC; --ai-bg:#2A2433; --ai-line:#6F5C99; --hover-line:#5A4F49;
   --hdr:rgba(24,21,19,.94); --bar:rgba(34,30,27,.97);
   --banner-bg:#3A311B; --banner-line:#6B5A2A; --tag-fg:#EDB79F; --green-bg:#1E3326; --green-fg:#9CD3AC;
@@ -261,6 +261,14 @@ ol.steps li{margin:0 0 12px;padding-left:4px}
 .stepper{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:999px;background:var(--surface)}
 .stepper button{border:none;background:none;width:34px;height:32px;font-size:18px;cursor:pointer}
 .stepper span{min-width:58px;text-align:center;font-weight:600;font-size:14px}
+@media (pointer: coarse) {
+  .stepper button{width:46px;height:44px}
+  .seg button{min-height:44px;padding:10px 14px}
+  .btn{min-height:44px}
+  .btn.small{min-height:40px}
+  .iconbtn{min-width:44px;min-height:44px}
+  .chip{min-height:40px}
+}
 /* modal */
 .modal-bg{position:fixed;inset:0;background:var(--scrim);z-index:50;display:flex;align-items:flex-end;justify-content:center}
 @media(min-width:700px){.modal-bg{align-items:center}}
@@ -400,12 +408,12 @@ const DENSITY = [
   { k: ['kasza manna', 'kaszy manny', 'semolina', 'semulje', 'mannagryn'], d: 0.70, n: 'kasza manna' },
   { k: ['mąka', 'mąki', 'flour', 'hvedemel', ' mel '], d: 0.52, n: 'mąka pszenna' },
   { k: ['cukier', 'cukru', 'sugar', 'sukker'], d: 0.83, n: 'cukier' },
+  { k: ['masło orzech', 'masła orzech', 'peanut butter', 'peanutbutter', 'jordnøddesmør'], d: 1.08, n: 'masło orzechowe' },
   { k: ['masło', 'masła', 'butter', 'smør'], d: 0.95, n: 'masło' },
   { k: ['płatki owsian', 'płatków owsian', 'oats', 'oatmeal', 'havregryn'], d: 0.38, n: 'płatki owsiane' },
   { k: ['ryż', 'ryżu', 'rice', 'ris'], d: 0.80, n: 'ryż (suchy)' },
   { k: ['miód', 'miodu', 'honey', 'honning'], d: 1.42, n: 'miód' },
   { k: ['syrop klonow', 'maple syrup', 'ahornsirup'], d: 1.32, n: 'syrop klonowy' },
-  { k: ['masło orzech', 'peanut butter', 'peanutbutter', 'jordnøddesmør'], d: 1.08, n: 'masło orzechowe' },
   { k: ['rodzynk', 'raisin', 'rosin'], d: 0.63, n: 'rodzynki' },
   { k: ['wiórki kokos', 'wiórków kokos', 'desiccated coconut', 'shredded coconut', 'kokosmel'], d: 0.35, n: 'wiórki kokosowe' },
   { k: ['bułka tarta', 'bułki tartej', 'breadcrumb', 'rasp'], d: 0.45, n: 'bułka tarta' },
@@ -426,15 +434,25 @@ function normalize(s) {
     .replace(/ł/g, 'l').replace(/æ/g, 'ae').replace(/ø/g, 'o').replace(/å/g, 'a')
     .normalize('NFD').replace(/[̀-ͯ]/g, '');
 }
+// A key must start a word, and may only be followed by a usual ending ("mąki", "oats", "razowa"),
+// so "salted peanuts" is not salt and "licorice" is not rice.
+const DENS_END = '(?:s|es|a|e|i|y|u|ą|ę|em|om|ej|ego|ach|ami|ów|ka|ki|kę|ową|owa|owe|owy|owej|owego|owych|ych|ym|ymi|iej|ia|ie|en|er|ne)?';
+const DENS_RE = new Map();
 function findDensity(item) {
   const s = ' ' + (item || '').toLowerCase() + ' ';
-  for (const e of DENSITY) if (e.k.some(k => s.includes(k))) return e.none ? null : e;
+  for (const e of DENSITY) if (e.k.some(k => {
+    let re = DENS_RE.get(k);
+    if (!re) { re = new RegExp('(?:^|[^\\p{L}])' + k.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + DENS_END + '(?![\\p{L}])', 'u'); DENS_RE.set(k, re); }
+    return re.test(s);
+  })) return e.none ? null : e;
   return null;
 }
 
 const FRAC = { '½': 0.5, '¼': 0.25, '¾': 0.75, '⅓': 1 / 3, '⅔': 2 / 3, '⅛': 0.125, '⅜': 0.375, '⅝': 0.625, '⅞': 0.875 };
 function readNum(s) {
   let m;
+  // 1 000 g / 1.000 g / 1 000 ml: thousands, but only before g or ml and not "1 400 g puszka" (one 400 g can)
+  if ((m = s.match(/^(\d{1,3})[ .\u00a0\u202f](\d{3})(?![\d.,])(?=\s*(?:g|gram\w*|ml|mililitr\w*)\b)/i)) && !/puszk|opak|słoik|paczk|\bcan\b|\btin\b|\bpack|dåse|pakke/i.test(s)) return [+(m[1] + m[2]), m[0].length];
   if ((m = s.match(/^(\d+)\s+(\d+)\s*\/\s*(\d+)/))) return [+m[1] + m[2] / m[3], m[0].length];
   if ((m = s.match(/^(\d+)\s*\/\s*(\d+)/))) return [m[1] / m[2], m[0].length];
   if ((m = s.match(/^(\d+(?:[.,]\d+)?)\s*([½¼¾⅓⅔⅛⅜⅝⅞])?/))) return [parseFloat(m[1].replace(',', '.')) + (m[2] ? FRAC[m[2]] : 0), m[0].length];
@@ -538,9 +556,23 @@ function fmtMetric(x, base, lang) { // base: 'g' or 'ml'
   if (lang !== 'en') s = s.replace('.', ',');
   return s + ' ' + base;
 }
-function unitText(ing, lang, isOrigLang) {
+const UNIT_FORMS = {
+  pl: { tsp: ['łyżeczka', 'łyżeczki', 'łyżeczek'], tbsp: ['łyżka', 'łyżki', 'łyżek'], szkl: ['szklanka', 'szklanki', 'szklanek'], pinch: ['szczypta', 'szczypty', 'szczypt'], clove: ['ząbek', 'ząbki', 'ząbków'], can: ['puszka', 'puszki', 'puszek'], bunch: ['pęczek', 'pęczki', 'pęczków'], handful: ['garść', 'garście', 'garści'], slice: ['plaster', 'plastry', 'plastrów'] },
+  en: { cup: ['cup', 'cups'], pinch: ['pinch', 'pinches'], clove: ['clove', 'cloves'], can: ['can', 'cans'], pack: ['pack', 'packs'], bunch: ['bunch', 'bunches'], handful: ['handful', 'handfuls'], slice: ['slice', 'slices'] },
+  da: { pinch: ['knivspids', 'knivspidser'], can: ['dåse', 'dåser'], pack: ['pakke', 'pakker'], bunch: ['bundt', 'bundter'], handful: ['håndfuld', 'håndfulde'], slice: ['skive', 'skiver'] },
+};
+function unitForm(forms, n, lang) {
+  if (lang !== 'pl') return n > 1 || n === 0 ? forms[1] : forms[0];
+  if (Math.abs(n - Math.round(n)) > 0.01) return forms[1]; // 1,5 łyżki
+  const k = Math.round(n); if (k === 1) return forms[0];
+  const d = k % 10, dd = k % 100;
+  return (d >= 2 && d <= 4 && !(dd >= 12 && dd <= 14)) ? forms[1] : forms[2];
+}
+function unitText(ing, lang, isOrigLang, n) {
   if (!ing.unit) return ing.unitRaw || '';
-  if (isOrigLang && ing.unitRaw) return ing.unitRaw;
+  const forms = UNIT_FORMS[lang] && UNIT_FORMS[lang][ing.unit];
+  if (isOrigLang && ing.unitRaw) return forms && n != null && forms.includes(ing.unitRaw.toLowerCase()) ? unitForm(forms, n, lang) : ing.unitRaw;
+  if (forms && n != null) return unitForm(forms, n, lang);
   return (UNIT_LABEL[lang] && UNIT_LABEL[lang][ing.unit]) || ing.unitRaw || ing.unit;
 }
 // returns {q: "200 g", approx:bool, orig:"1 cup"}
@@ -549,7 +581,7 @@ function displayQty(ing, factor, mode, lang, isOrigLang) {
   const has = ing.qty != null;
   const q1 = has ? roundScaled(ing.qty * factor, ing.unit, factor) : null;
   const q2 = ing.qtyMax != null ? roundScaled(ing.qtyMax * factor, ing.unit, factor) : null;
-  const ut = unitText(ing, lang, isOrigLang);
+  const ut = unitText(ing, lang, isOrigLang, q2 != null ? q2 : q1);
   const origStr = has ? (fmtNum(q1, lang, ing.unit) + (q2 != null ? '–' + fmtNum(q2, lang, ing.unit) : '') + (ut ? ' ' + ut : '')) : (ut || '');
   if (mode === 'household') return householdQty(ing, q1, q2, lang, origStr);
   if (mode !== 'metric' || !has || !ing.unit || !UNITS[ing.unit]) return { q: origStr };
@@ -972,7 +1004,7 @@ const apiSample = {
       lastUser.content = blocks.concat(lastUser.content);
     }
     let resp;
-    const reqBody = JSON.stringify({ model: apiModel(), max_tokens: 8000, system: 'You are a helper inside a personal recipe app. Your reply is parsed by code: reply with ONE valid JSON value only, no other text.', messages: msgs });
+    const reqBody = JSON.stringify({ model: opts.modelTier === 'fast' ? 'claude-haiku-5-5' : apiModel(), max_tokens: opts.maxTokens || 8000, system: 'You are a helper inside a personal recipe app. Your reply is parsed by code: reply with ONE valid JSON value only, no other text.', messages: msgs });
     if (window.native && window.native.anthropic) {
       if (opts.signal && opts.signal.aborted) throw { code: 'cancelled', message: 'cancelled' };
       const r = await window.native.anthropic(key, reqBody);
@@ -1095,9 +1127,37 @@ Wymagania techniczne: viewBox="0 0 400 300", width i height nieustawione, najwy�
 Zwróć WYŁĄCZNIE JSON {"svg": "<svg ...>...</svg>"}.`, { modelTier: 'default' });
   let svg = String((res && res.svg) || '').trim();
   if (!/^<svg[\s>]/i.test(svg) || !/<\/svg>\s*$/i.test(svg)) throw new Error(tx('AI nie zwróciło poprawnej grafiki. Spróbuj jeszcze raz.'));
-  svg = svg.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/\son\w+="[^"]*"/gi, '').replace(/<(image|foreignObject|a)\b[\s\S]*?(<\/\1>|\/>)/gi, '');
-  if (!/xmlns=/.test(svg)) svg = svg.replace(/^<svg/i, '<svg xmlns="http://www.w3.org/2000/svg"');
+  svg = sanitizeSvg(svg);
+  if (!svg) throw new Error(tx('AI nie zwróciło poprawnej grafiki. Spróbuj jeszcze raz.'));
   return svg;
+}
+// Keeps only plain drawing elements and attributes, so a picture can never carry script or links.
+const SVG_EL = new Set(['svg', 'g', 'defs', 'path', 'circle', 'ellipse', 'rect', 'polygon', 'polyline', 'line', 'lineargradient', 'radialgradient', 'stop', 'clippath', 'title']);
+const SVG_AT = new Set(['d', 'cx', 'cy', 'r', 'rx', 'ry', 'x', 'y', 'x1', 'y1', 'x2', 'y2', 'width', 'height', 'points', 'fill', 'stroke', 'stroke-width', 'stroke-linecap', 'stroke-linejoin', 'stroke-dasharray', 'opacity', 'fill-opacity', 'stroke-opacity', 'transform', 'viewbox', 'id', 'offset', 'stop-color', 'stop-opacity', 'gradientunits', 'gradienttransform', 'fx', 'fy', 'clip-path', 'fill-rule', 'clip-rule', 'preserveaspectratio']);
+function sanitizeSvg(text) {
+  try {
+    const doc = new DOMParser().parseFromString(String(text), 'image/svg+xml');
+    const root = doc.documentElement;
+    if (!root || root.nodeName.toLowerCase() !== 'svg' || doc.querySelector('parsererror')) return '';
+    const walk = (el) => {
+      for (const c of Array.from(el.children)) { if (!SVG_EL.has(c.nodeName.toLowerCase())) c.remove(); else walk(c); }
+      for (const a of Array.from(el.attributes)) {
+        const n = a.name.toLowerCase(), v = a.value;
+        if (n === 'xmlns' && el === root) continue;
+        if (!SVG_AT.has(n) || /javascript:|data:|expression\(/i.test(v) || (/url\(/i.test(v) && !/^\s*url\(\s*#[\w-]+\s*\)\s*$/i.test(v))) el.removeAttribute(a.name);
+      }
+    };
+    walk(root);
+    root.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    const out = new XMLSerializer().serializeToString(root);
+    return out.length < 400000 ? out : '';
+  } catch (e) { return ''; }
+}
+function safeImageData(d) {
+  if (typeof d !== 'string' || d.length > 15e6) return '';
+  if (/^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+/=\s]+$/.test(d)) return d;
+  if (/^<svg[\s>]/.test(d)) return sanitizeSvg(d);
+  return '';
 }
 async function initStore() {
   S.local = true;
@@ -1207,7 +1267,7 @@ function mergeSync(j) {
     if (!localTomb.has(t.id) || localTomb.get(t.id) < t.at) localTomb.set(t.id, t.at);
   }
   const inImgs = {};
-  if (j.images && typeof j.images === 'object' && !Array.isArray(j.images)) for (const [id, d] of Object.entries(j.images)) if (typeof d === 'string' && /^(data:image\/(jpeg|png|webp|gif);base64,|<svg[\s>])/.test(d) && d.length < 15e6) inImgs[id] = d;
+  if (j.images && typeof j.images === 'object' && !Array.isArray(j.images)) for (const [id, d] of Object.entries(j.images)) { const safe = safeImageData(d); if (safe) inImgs[id] = safe; }
   byId.forEach((r, id) => { if (inImgs[id] && r.image && (r._new || !S.imgs[id] || ((incoming.find(x => x && x.id === id) || {}).image || {}).at === r.image.at)) { S.imgs[id] = inImgs[id]; IDB.set(id, inImgs[id]).catch(() => { }); setImgVer(id, r.image.at); } delete r._new; });
   S.recipes = Array.from(byId.values());
   S.deleted = Array.from(localTomb, ([id, at]) => ({ id, at })).filter(d => !byId.has(d.id)).slice(-2000);
@@ -1365,14 +1425,16 @@ async function lanParseInvite(text) {
 function imgVer() { return lsGet('cookingAssistant.imgver', {}); }
 function setImgVer(id, at) { const v = imgVer(); if (at) v[id] = at; else delete v[id]; lsSet('cookingAssistant.imgver', v); }
 function imgOk(r) { if (!r.image) return true; if (!S.imgs[r.id]) return false; const v = imgVer()[r.id]; return v == null || v === r.image.at; }
-function lanWants() { return S.recipes.filter(r => r.image && !imgOk(r)).map(r => r.id); }
+const NO_IMG = new Map(); // picture asked for but the other device did not have it: ask again after an hour
+function lanWants() { const now = Date.now(); return S.recipes.filter(r => r.image && !imgOk(r) && !(now - (NO_IMG.get(r.id + '|' + r.image.at) || 0) < 3600000)).map(r => r.id); }
+function noteMissing(asked, got) { (asked || []).forEach(id => { const r = getR(id); if (r && r.image && !(got && got[id])) NO_IMG.set(id + '|' + r.image.at, Date.now()); }); }
 function lanImgs(ids) { const out = {}; let size = 0; (ids || []).forEach(id => { const r = getR(id); if (r && r.image && S.imgs[id] && imgOk(r) && size < 40e6) { out[id] = { at: r.image.at, d: S.imgs[id] }; size += S.imgs[id].length; } }); return out; }
 async function lanStoreImgs(imgs) {
   let n = 0;
   for (const [id, x] of Object.entries(imgs || {})) {
     const r = getR(id); if (!r || !r.image || !x || r.image.at !== x.at || typeof x.d !== 'string') continue;
-    if (!/^(data:image\/(jpeg|png|webp|gif);base64,|<svg[\s>])/.test(x.d)) continue;
-    S.imgs[id] = x.d; try { await IDB.set(id, x.d); } catch (e) { } setImgVer(id, x.at); n++;
+    const safe = safeImageData(x.d); if (!safe) continue;
+    S.imgs[id] = safe; try { await IDB.set(id, safe); } catch (e) { } setImgVer(id, x.at); n++;
   }
   return n;
 }
@@ -1432,7 +1494,11 @@ async function lanHandle(raw) {
   const from = m.from; notePeer(from, { lastSeen: Date.now() });
   if (m.t === 'sync') {
     const mine = lanWants();
-    if (m.digest === lanDigest() && !(m.need || []).length && !mine.length) { notePeer(from, { lastSync: Date.now() }); refreshLanBits(); return lanSeal({ t: 'same', from: me() }); }
+    if (m.digest === lanDigest()) {
+      notePeer(from, { lastSync: Date.now() }); refreshLanBits();
+      if (!(m.need || []).length && !mine.length) return lanSeal({ t: 'same', from: me() });
+      return lanSeal({ t: 'imgsonly', from: me(), imgs: lanImgs(m.need), want: mine }); // recipes already match: only pictures travel
+    }
     return lanSeal({ t: 'state', from: me(), data: lanLite(), imgs: lanImgs(m.need), want: mine });
   }
   if (m.t === 'push') {
@@ -1461,9 +1527,16 @@ async function lanSyncWith(id, manual) {
     const skew = (numOrNull(r1.now) || Date.now()) - Date.now();
     notePeer(r1.from, { lastSeen: Date.now() });
     if (r1.t === 'same') { notePeer(r1.from, { lastSync: Date.now() }); return true; }
+    if (r1.t === 'imgsonly') {
+      const asked = lanWants(); const n0 = await lanStoreImgs(r1.imgs); noteMissing(asked, r1.imgs);
+      const give0 = lanImgs(r1.want);
+      if (Object.keys(give0).length) await lanOpen(await br.request(host, port, await lanSeal({ t: 'give', from: me(), imgs: give0 })));
+      notePeer(r1.from, { lastSync: Date.now() }); if (n0) lanAfter({}, n0); return true;
+    }
     let st = lanMerge(r1.data, skew); let n = await lanStoreImgs(r1.imgs);
     const r2 = await lanOpen(await br.request(host, port, await lanSeal({ t: 'push', from: me(), data: lanLite(), imgs: lanImgs(r1.want), need: lanWants() })));
-    n += await lanStoreImgs(r2.imgs);
+    const asked2 = lanWants();
+    n += await lanStoreImgs(r2.imgs); noteMissing(asked2, r2.imgs);
     const give = lanImgs(r2.want);
     if (Object.keys(give).length) await lanOpen(await br.request(host, port, await lanSeal({ t: 'give', from: me(), imgs: give })));
     notePeer(r1.from, { lastSync: Date.now(), lastNote: stText(st) || p.lastNote || '' });
@@ -1674,13 +1747,19 @@ async function translateTags() {
       const k = src + '|' + t; if (!need.has(k)) need.set(k, { src, tag: t, langs: new Set() }); need.get(k).langs.add(l);
     }));
   });
+  // a tag that was already sent in the last week is not sent again (the AI may have skipped it on purpose)
+  const tried0 = lsGet('cookingAssistant.tagtried', {});
+  for (const [k] of need) if (Date.now() - (tried0[k] || 0) < 7 * 86400000) need.delete(k);
   if (!need.size) return;
   tagBusy = true;
   try {
     const list = Array.from(need.values()).slice(0, 150).map(x => ({ tag: x.tag, from: x.src }));
+    const tried = lsGet('cookingAssistant.tagtried', {}); const now = Date.now();
+    list.forEach(x => { tried[x.from + '|' + x.tag] = now; });
+    lsSet('cookingAssistant.tagtried', tried);
     const res = await ai(`Przetłumacz krótkie tagi przepisów kulinarnych. Dla każdego podaj wersję polską, angielską i duńską: małymi literami, krótko, tak jak tag w aplikacji z przepisami (np. "wegańskie" / "vegan"). Jeśli tag już jest w danym języku, przepisz go bez zmian.
 Zwróć WYŁĄCZNIE JSON {"t":[{"tag":"<oryginał>","pl":"...","en":"...","da":"..."}]}
-Tagi: ${JSON.stringify(list)}`, { modelTier: 'fast' });
+Tagi: ${JSON.stringify(list)}`, { modelTier: 'fast', maxTokens: 2000 });
     const got = new Map(); ((res && res.t) || []).forEach(x => { if (x && x.tag) got.set(String(x.tag), x); });
     for (const r of S.recipes.slice()) {
       const src = tagSrcLang(r); let ch = false; const tr = clean(r.tagTr || {});
@@ -2008,7 +2087,7 @@ function renderList() {
       return h('div', { class: 'card' + (S.imgs[r.id] ? ' withimg' : ''), onclick: () => goto('recipe', r.id) },
         S.imgs[r.id] ? h('div', { class: 'thumb', style: 'background-image:url("' + imgSrc(r.id).replace(/"/g, '%22') + '")' }) : null,
         h('div', { class: 'row', style: 'align-items:flex-start' }, h('h3', { class: 'grow' }, titleIn(r, lang)),
-          S.canWrite ? h('button', { class: 'iconbtn', style: 'font-size:18px;padding:2px 6px;margin:-4px -6px 0 0;color:' + (r.status === 'fav' ? '#C8902A' : '#c9bfb4'), title: r.status === 'fav' ? tx('Usuń z ulubionych') : tx('Dodaj do ulubionych'), onclick: (e) => { e.stopPropagation(); setStatus(r, r.status === 'fav' ? '' : 'fav'); } }, r.status === 'fav' ? '★' : '☆')
+          S.canWrite ? h('button', { class: 'iconbtn', style: 'font-size:18px;padding:2px 6px;margin:-4px -6px 0 0;color:' + (r.status === 'fav' ? '#C8902A' : '#8f857a'), title: r.status === 'fav' ? tx('Usuń z ulubionych') : tx('Dodaj do ulubionych'), onclick: (e) => { e.stopPropagation(); setStatus(r, r.status === 'fav' ? '' : 'fav'); } }, r.status === 'fav' ? '★' : '☆')
             : (r.status === 'fav' ? h('span', { style: 'color:#C8902A' }, '★') : null)),
         (r.status && r.status !== 'fav') || (r.flags || []).length ? h('div', null,
           r.status && r.status !== 'fav' && STATUS[r.status] ? h('span', { class: 'stattag' + (r.status === 'fail' ? ' bad' : '') }, STATUS[r.status].icon + ' ' + tx(STATUS[r.status].label)) : null,
@@ -2123,7 +2202,7 @@ function renderRecipe() {
     h('div', { class: 'tagline' }, tagsIn(r).map(x => h('span', { class: 'tag' }, x))));
   if (r.source && (r.source.url || r.source.name)) {
     body.append(h('div', { class: 'meta', style: 'margin-top:4px' }, lab.source + ': ',
-      r.source.url ? h('a', { href: r.source.url, target: '_blank', rel: 'noopener' }, r.source.name || hostOf(r.source.url)) : r.source.name));
+      /^https?:\/\//i.test(r.source.url || '') ? h('a', { href: r.source.url, target: '_blank', rel: 'noopener' }, r.source.name || hostOf(r.source.url)) : r.source.name));
   }
   // header: details on the left, picture on the right (picture on top on narrow screens)
   {
@@ -2305,7 +2384,10 @@ async function cookMode(r) {
     else if (navigator.wakeLock) lock = await navigator.wakeLock.request('screen');
   } catch (e) { lock = null; }
   const ov = h('div', { class: 'cook' });
-  const close = () => { try { lock && lock.release(); } catch (e) { } ov.remove(); };
+  const onKey = (e) => { if (e.key === 'Escape') close(); };
+  const onVis = async () => { if (!document.hidden && ov.isConnected && navigator.wakeLock && NATIVE !== 'android') { try { lock = await navigator.wakeLock.request('screen'); } catch (e) { } } };
+  document.addEventListener('keydown', onKey); document.addEventListener('visibilitychange', onVis);
+  const close = () => { try { lock && lock.release(); } catch (e) { } document.removeEventListener('keydown', onKey); document.removeEventListener('visibilitychange', onVis); ov.remove(); };
   const qtyOf = (i) => { const d = displayQty(r.ingredients[i], factor, mode, lang, isOrig); return ((d.approx ? '≈ ' : '') + d.q).trim(); };
   function draw() {
     const scrollIng = ov.querySelector('.cook-ing') ? ov.querySelector('.cook-ing').scrollTop : 0;
