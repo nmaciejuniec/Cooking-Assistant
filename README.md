@@ -61,8 +61,11 @@ Merging keeps the newest version of each recipe and never overwrites with an old
 - Recipe-card look in green, red or brown, or the plain Modern look; light, dark or system theme
 
 ## For developers
-- `index.html` is the whole app (plain HTML/JS, no build step). `vendor/` holds `qrcode.js` (qrcode-generator, MIT)
-  and `jsQR.js` (jsQR, Apache-2.0) for the pairing QR code.
+- `index.html` is the whole app (plain HTML/JS, no build step). Recipes are stored in IndexedDB (pictures too),
+  and every recipe that comes in from storage, a file or the other device is checked and repaired by `normalizeRecipe()`.
+- `vendor/` holds the libraries, bundled so the app works offline: pdf.js 3.11.174 (Apache-2.0, run with
+  `isEvalSupported:false`), mammoth (BSD-2), html2canvas (MIT), jsPDF 3 (MIT), qrcode-generator (MIT) and jsQR (Apache-2.0).
+  Their licenses are in `vendor/licenses/`.
 - Android: Capacitor (`capacitor.config.json`). `scripts/android-native.sh` adds icons (`native/android/res`),
   the Wi-Fi sync plugin (`native/android/java/LanSyncPlugin.java`: Bonjour via `NsdManager` + TCP) and its permissions.
 - Mac: Electron (`electron/`), packaged by electron-builder and ad-hoc signed. Wi-Fi sync uses `bonjour-service` + TCP in `electron/main.js`.

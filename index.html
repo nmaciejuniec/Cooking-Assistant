@@ -806,7 +806,7 @@ function h(tag, attrs, ...kids) {
     if (k === 'class') el.className = v;
     else if (k === 'style') el.style.cssText = v;
     else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
-    else if (k === 'value') el.value = v;
+    else if (k === 'value') { el.value = v; el.dataset.orig = v == null ? '' : String(v); }
     else if (k === 'checked') el.checked = !!v;
     else el.setAttribute(k, v === true ? '' : v);
   }
@@ -837,6 +837,65 @@ function uid() { return 'r' + Date.now().toString(36) + Math.random().toString(3
 function getR(id) { return S.recipes.find(r => r.id === id); }
 function clean(o) { return JSON.parse(JSON.stringify(o)); }
 
+// ---- every recipe that comes in (storage, files, the other device) is checked and repaired here ----
+const sStr = v => v == null ? '' : typeof v === 'string' ? v : (typeof v === 'number' || typeof v === 'boolean') ? String(v) : '';
+const numOrNull = v => { const n = typeof v === 'number' ? v : (typeof v === 'string' && v.trim() !== '' ? Number(v.replace(',', '.')) : NaN); return Number.isFinite(n) ? n : null; };
+const strList = v => (Array.isArray(v) ? v : (typeof v === 'string' && v.trim() ? [v] : [])).map(x => typeof x === 'string' ? x : typeof x === 'number' ? String(x) : (x && typeof x === 'object' && typeof x.text === 'string') ? x.text : null).filter(x => x != null && x !== '');
+function normIng(x) {
+  if (x == null) return null;
+  if (typeof x === 'string' || typeof x === 'number') { const t = String(x).trim(); if (!t) return null; try { const o = parseIngredientLine(t); if (o && typeof o === 'object') return normIng(o); } catch (e) { } return { qty: null, qtyMax: null, unit: '', unitRaw: '', item: t }; }
+  if (typeof x !== 'object' || Array.isArray(x)) return null;
+  const o = Object.assign({}, x);
+  o.item = sStr(o.item);
+  if (o.header) { o.header = true; return o.item ? o : null; }
+  delete o.header;
+  o.qty = numOrNull(o.qty); o.qtyMax = numOrNull(o.qtyMax); o.unit = sStr(o.unit); o.unitRaw = sStr(o.unitRaw);
+  if (o.note != null) o.note = sStr(o.note);
+  return (o.item || o.qty != null) ? o : null;
+}
+function normalizeRecipe(r) {
+  if (!r || typeof r !== 'object' || Array.isArray(r)) return null;
+  let o; try { o = clean(r); } catch (e) { return null; }
+  o.id = sStr(o.id).trim().slice(0, 80); o.title = sStr(o.title).trim().slice(0, 300);
+  if (!o.id || !o.title || o.id === '__proto__' || o.id === 'constructor' || o.id === 'prototype') return null;
+  o.ingredients = (Array.isArray(o.ingredients) ? o.ingredients : typeof o.ingredients === 'string' ? o.ingredients.split('\n') : []).map(normIng).filter(Boolean);
+  o.steps = typeof o.steps === 'string' ? o.steps.split(/\n+/).map(x => x.trim()).filter(Boolean) : strList(o.steps);
+  o.tags = (typeof o.tags === 'string' ? o.tags.split(',') : strList(o.tags)).map(t => t.trim()).filter(Boolean).slice(0, 30);
+  ['notes', 'category', 'subcategory', 'prepTime', 'cookTime', 'lang', 'tagLang', 'status'].forEach(k => { o[k] = sStr(o[k]); });
+  if (!o.tagLang) delete o.tagLang;
+  if (!['fav', 'try'].includes(o.status)) o.status = '';
+  o.servings = numOrNull(o.servings); if (o.servings != null && !(o.servings > 0 && o.servings < 1000)) o.servings = null;
+  const src = o.source && typeof o.source === 'object' && !Array.isArray(o.source) ? o.source : { name: typeof o.source === 'string' ? o.source : '' };
+  o.source = Object.assign({}, src, { name: sStr(src.name), url: /^https?:\/\//i.test(sStr(src.url)) ? sStr(src.url) : '' });
+  if (!o.source.url) delete o.source.url;
+  o.flags = strList(o.flags);
+  const ai = o.ai && typeof o.ai === 'object' && !Array.isArray(o.ai) ? o.ai : {};
+  ai.hints = (Array.isArray(ai.hints) ? ai.hints : []).map(x => typeof x === 'string' ? { text: x } : (x && typeof x === 'object' && typeof x.text === 'string') ? x : null).filter(Boolean);
+  o.ai = ai;
+  o.missing = strList(o.missing);
+  const tr = {};
+  if (o.tr && typeof o.tr === 'object' && !Array.isArray(o.tr)) for (const [k, v] of Object.entries(o.tr)) {
+    if (!['pl', 'en', 'da'].includes(k) || !v || typeof v !== 'object' || Array.isArray(v)) continue;
+    tr[k] = Object.assign({}, v, { title: sStr(v.title), items: strList(v.items), steps: strList(v.steps) });
+    if (v.hints != null) tr[k].hints = strList(v.hints);
+  }
+  o.tr = tr;
+  if (o.tagTr != null) {
+    const t = {};
+    if (typeof o.tagTr === 'object' && !Array.isArray(o.tagTr)) for (const l of ['pl', 'en', 'da']) { const m = o.tagTr[l]; if (m && typeof m === 'object' && !Array.isArray(m)) { t[l] = {}; for (const [a, b] of Object.entries(m)) if (typeof b === 'string' && a !== '__proto__') t[l][a] = b; } }
+    o.tagTr = t;
+  }
+  if (o.stepsOriginal != null) o.stepsOriginal = strList(o.stepsOriginal);
+  if (o.image && typeof o.image === 'object' && typeof o.image.kind === 'string') o.image = { kind: o.image.kind, at: numOrNull(o.image.at) || 0 }; else delete o.image;
+  const now = Date.now();
+  o.createdAt = numOrNull(o.createdAt) || now; o.updatedAt = numOrNull(o.updatedAt) || o.createdAt;
+  if (o.updatedAt > now + 86400000) o.updatedAt = now;
+  if (o.createdAt > o.updatedAt) o.createdAt = o.updatedAt;
+  o.aiGenerated = !!o.aiGenerated;
+  return o;
+}
+function normalizeDeleted(list) { return (Array.isArray(list) ? list : []).filter(d => d && typeof d.id === 'string' && d.id).map(d => ({ id: d.id, at: Math.min(numOrNull(d.at) || 0, Date.now() + 86400000) })).slice(-2000); }
+
 // ---- storage ----
 // ================= STANDALONE: storage, AI via Anthropic API, sync =================
 const APP_VERSION = '__APP_VERSION__';
@@ -844,7 +903,7 @@ const NATIVE = (window.Capacitor && window.Capacitor.isNativePlatform && window.
 const CAP = (n) => (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins[n]) || null;
 const MODELS = { 'claude-sonnet-5-5': 'Claude Sonnet 5.5', 'claude-haiku-5-5': 'Claude Haiku 5.5' };
 function lsGet(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }
-function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); if (k === 'cookingAssistant.local' || k === 'cookingAssistant.deleted') { try { lanChanged(); } catch (e) { } } return true; } catch (e) { toast(tx('Nie udało się zapisać danych na tym urządzeniu')); return false; } }
+function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); if (k === 'cookingAssistant.deleted') { try { lanChanged(); } catch (e) { } } return true; } catch (e) { toast(tx('Nie udało się zapisać danych na tym urządzeniu')); return false; } }
 function apiKey() { return lsGet('cookingAssistant.apikey', ''); }
 function apiModel() { const m = lsGet('cookingAssistant.model', 'claude-sonnet-5-5'); return MODELS[m] ? m : 'claude-sonnet-5-5'; }
 function blobToB64(blob) { return new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result).split(',')[1]); fr.onerror = rej; fr.readAsDataURL(blob); }); }
@@ -952,12 +1011,14 @@ const IDB = {
   db: null,
   open() {
     if (!this.db) this.db = new Promise((res, rej) => {
-      try { const q = indexedDB.open('cookingAssistant', 1); q.onupgradeneeded = () => q.result.createObjectStore('images'); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); }
+      try { const q = indexedDB.open('cookingAssistant', 2); q.onupgradeneeded = () => { const db = q.result; if (!db.objectStoreNames.contains('images')) db.createObjectStore('images'); if (!db.objectStoreNames.contains('data')) db.createObjectStore('data'); }; q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); }
       catch (e) { rej(e); }
     });
     return this.db;
   },
-  async tx(mode, fn) { const db = await this.open(); return new Promise((res, rej) => { const t = db.transaction('images', mode); const st = t.objectStore('images'); const out = fn(st); t.oncomplete = () => res(out && out.result); t.onerror = () => rej(t.error); }); },
+  async tx(mode, fn, store) { store = store || 'images'; const db = await this.open(); return new Promise((res, rej) => { const t = db.transaction(store, mode); const st = t.objectStore(store); const out = fn(st); t.oncomplete = () => res(out && out.result); t.onerror = () => rej(t.error); t.onabort = () => rej(t.error || new Error('aborted')); }); },
+  dget(k) { return this.tx('readonly', st => st.get(k), 'data'); },
+  dset(k, v) { return this.tx('readwrite', st => st.put(v, k), 'data'); },
   set(k, v) { return this.tx('readwrite', st => st.put(v, k)); },
   del(k) { return this.tx('readwrite', st => st.delete(k)); },
   async all() {
@@ -1010,11 +1071,16 @@ Zwróć WYŁĄCZNIE JSON {"svg": "<svg ...>...</svg>"}.`, { modelTier: 'default'
 }
 async function initStore() {
   S.local = true;
-  S.recipes = lsGet('cookingAssistant.local', []);
-  S.deleted = lsGet('cookingAssistant.deleted', []);
   S.downloads = fileDownloads;
   refreshAi();
-  await loadImages();
+  try {
+    S.recipes = await loadRecipes();
+    S.deleted = normalizeDeleted(lsGet('cookingAssistant.deleted', []));
+    await loadImages();
+  } catch (e) {
+    S.recipes = S.recipes || []; S.deleted = S.deleted || [];
+    S.note = tx('Nie udało się wczytać części danych: ') + (e && e.message || e);
+  }
   let fixed = 0;
   S.recipes.forEach(r => (r.ingredients || []).forEach((ing, k) => {
     if (!ing.header && ing.qty == null && !ing.unit && ing.item) { const tq = splitTrailingQty(ing.item); if (tq) { r.ingredients[k] = tq; fixed++; } }
@@ -1025,13 +1091,39 @@ async function initStore() {
   setTimeout(() => { try { scheduleTags(); } catch (e) { } }, 3000);
   try { if (navigator.storage && navigator.storage.persist) S.persisted = await navigator.storage.persist(); } catch (e) { }
 }
-function persistLocal() { lsSet('cookingAssistant.local', S.recipes); }
+// recipes live in IndexedDB (no 5 MB limit); localStorage is only the fallback where IndexedDB is unavailable
+async function loadRecipes() {
+  const raw = localStorage.getItem('cookingAssistant.local');
+  let list = null, fromLs = false;
+  try { list = await IDB.dget('recipes'); S.store = 'idb'; } catch (e) { S.store = 'ls'; }
+  if (raw != null) { try { const ls = JSON.parse(raw); if (Array.isArray(ls) && (S.store === 'ls' || ls.length || !list)) { list = ls; fromLs = true; } } catch (e) { } }
+  const good = (Array.isArray(list) ? list : []).map(normalizeRecipe).filter(Boolean);
+  const seen = new Set(); const out = good.filter(r => !seen.has(r.id) && seen.add(r.id));
+  if (S.store === 'idb' && (fromLs || out.length !== (list || []).length)) {
+    try { await IDB.dset('recipes', out); if (fromLs) localStorage.removeItem('cookingAssistant.local'); } catch (e) { S.store = 'ls'; }
+  }
+  return out;
+}
+function storageFailed(e) {
+  S.storageBroken = true;
+  if (S.storageWarned) return; S.storageWarned = true;
+  modal(tx('Nie udało się zapisać przepisów'), h('div', null,
+    h('p', null, tx('Ostatnia zmiana NIE została zapisana na tym urządzeniu (prawdopodobnie brakuje miejsca). Po zamknięciu aplikacji może zniknąć.')),
+    h('p', { class: 'hint-small' }, tx('Zapisz teraz plik synchronizacji jako kopię, potem zwolnij miejsce na urządzeniu.') + (e ? ' (' + (e.name || e.message || e) + ')' : ''))),
+    [{ label: tx('Później'), value: false }, { label: tx('Zapisz plik synchronizacji'), value: true, primary: true }]).then(v => { S.storageWarned = false; if (v) exportFile(JSON.stringify(syncPayload(true)), 'recipes-sync-' + stamp() + '.json'); });
+}
+function persistLocal() {
+  if (S.store === 'idb') IDB.dset('recipes', S.recipes).then(() => { S.storageBroken = false; }, storageFailed);
+  else if (!lsSet('cookingAssistant.local', S.recipes)) storageFailed();
+  try { lanChanged(); } catch (e) { }
+}
 async function saveRecipe(r, fromTags) {
   const pendingImg = r._img; delete r._img;
   if (pendingImg) { r.image = { kind: pendingImg.kind, at: Date.now() }; setImgVer(r.id, r.image.at); S.imgs[r.id] = pendingImg.data; try { await IDB.set(r.id, pendingImg.data); } catch (e) { } }
   r.updatedAt = Date.now(); if (!r.createdAt) r.createdAt = r.updatedAt;
-  const i = S.recipes.findIndex(x => x.id === r.id);
-  if (i >= 0) S.recipes[i] = clean(r); else S.recipes.push(clean(r));
+  const nr = normalizeRecipe(r); if (!nr) throw new Error(tx('Przepis nie ma tytułu'));
+  const i = S.recipes.findIndex(x => x.id === nr.id);
+  if (i >= 0) S.recipes[i] = nr; else S.recipes.push(nr);
   S.deleted = S.deleted.filter(d => d.id !== r.id);
   persistLocal(); lsSet('cookingAssistant.deleted', S.deleted);
   if (!fromTags) { try { scheduleTags(); } catch (e) { } }
@@ -1051,14 +1143,20 @@ function syncPayload(withAssistant) {
 }
 function stamp() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
 function mergeSync(j) {
-  const incoming = Array.isArray(j) ? j : (j.recipes || (j.title ? [j] : []));
-  const tombs = Array.isArray(j.deleted) ? j.deleted : [];
+  if (!j || typeof j !== 'object') j = {};
+  const raw = Array.isArray(j) ? j : (Array.isArray(j.recipes) ? j.recipes : (j.title ? [j] : []));
+  const incoming = raw.map(x => {
+    if (!x || typeof x !== 'object' || Array.isArray(x)) return null;
+    const r = normalizeRecipe(Object.assign(blankRecipe(), x));
+    if (r && !numOrNull(x.updatedAt)) r.updatedAt = Math.min(numOrNull(x.createdAt) || 1, Date.now());
+    return r;
+  }).filter(Boolean);
+  const tombs = normalizeDeleted(j.deleted);
   const st = { added: 0, updated: 0, removed: 0, same: 0 };
   const byId = new Map(S.recipes.map(r => [r.id, r]));
   const localTomb = new Map(S.deleted.map(d => [d.id, d.at]));
   for (const x of incoming) {
-    if (!x || !x.title) continue;
-    const r = Object.assign(blankRecipe(), clean(x));
+    const r = x;
     if (!r.id || !/^[A-Za-z0-9_-]+$/.test(r.id)) r.id = uid();
     if (!r.updatedAt) r.updatedAt = r.createdAt || 1;
     const cur = byId.get(r.id);
@@ -1074,7 +1172,8 @@ function mergeSync(j) {
     if (cur && (cur.updatedAt || 0) <= t.at) { byId.delete(t.id); st.removed++; }
     if (!localTomb.has(t.id) || localTomb.get(t.id) < t.at) localTomb.set(t.id, t.at);
   }
-  const inImgs = (j && typeof j.images === 'object' && j.images) || {};
+  const inImgs = {};
+  if (j.images && typeof j.images === 'object' && !Array.isArray(j.images)) for (const [id, d] of Object.entries(j.images)) if (typeof d === 'string' && /^(data:image\/(jpeg|png|webp|gif);base64,|<svg[\s>])/.test(d) && d.length < 15e6) inImgs[id] = d;
   byId.forEach((r, id) => { if (inImgs[id] && r.image && (r._new || !S.imgs[id] || (incoming.find(x => x && x.id === id) || {}).updatedAt === r.updatedAt)) { S.imgs[id] = inImgs[id]; IDB.set(id, inImgs[id]).catch(() => { }); setImgVer(id, r.image.at); } delete r._new; });
   S.recipes = Array.from(byId.values());
   S.deleted = Array.from(localTomb, ([id, at]) => ({ id, at })).filter(d => !byId.has(d.id)).slice(-2000);
@@ -1082,10 +1181,12 @@ function mergeSync(j) {
   if (j.assistant && typeof j.assistant === 'object') {
     const mine = lsGet('cookingAssistant.asst', null);
     const merged = mine ? clean(mine) : clean(j.assistant);
+    if (!Array.isArray(merged.facts)) merged.facts = [];
+    merged.facts = merged.facts.filter(f => f && typeof f === 'object' && typeof f.id === 'string' && typeof f.text === 'string');
     if (mine) {
       if ((j.assistant.updatedAt || 0) > (mine.updatedAt || 0)) { merged.people = j.assistant.people || merged.people; merged.shared = j.assistant.shared || merged.shared; merged.updatedAt = j.assistant.updatedAt; }
       const ids = new Set((merged.facts || []).map(f => f.id));
-      (j.assistant.facts || []).forEach(f => { if (f && f.id && !ids.has(f.id)) merged.facts.push(f); });
+      (Array.isArray(j.assistant.facts) ? j.assistant.facts : []).forEach(f => { if (f && typeof f.id === 'string' && typeof f.text === 'string' && !ids.has(f.id)) merged.facts.push(f); });
     }
     lsSet('cookingAssistant.asst', merged); S.asst = null;
   }
@@ -1252,10 +1353,16 @@ function notePeer(from, patch) {
 }
 function stText(st) { const parts = []; if (st.added) parts.push('+' + st.added + ' ' + tx('nowe')); if (st.updated) parts.push(st.updated + ' ' + tx('zmienione')); if (st.removed) parts.push(st.removed + ' ' + tx('usunięte')); return parts.join(', '); }
 function addSt(a, b) { return { added: (a.added || 0) + (b.added || 0), updated: (a.updated || 0) + (b.updated || 0), removed: (a.removed || 0) + (b.removed || 0) }; }
+// true while the person is typing or has typed something on the page that a redraw would wipe out
+function userIsTyping() {
+  const a = document.activeElement;
+  if (a && (a.tagName === 'TEXTAREA' || a.tagName === 'SELECT' || (a.tagName === 'INPUT' && !/^(button|checkbox|radio|file|submit)$/i.test(a.type || '')))) return true;
+  return Array.from(document.querySelectorAll('textarea, input')).some(e => !/^(button|checkbox|radio|file|submit|hidden)$/i.test(e.type || '') && (e.dataset.orig != null ? e.value !== e.dataset.orig : !!e.value));
+}
 function lanAfter(st, imgs) {
   if (st.added || st.updated || st.removed || imgs) {
     const t = stText(st); if (t) toast('⇄ ' + t, 3500);
-    if (S.view !== 'edit' && !document.querySelector('.modal-bg, .cook')) render(); else S.lanDirty = true;
+    if (S.view !== 'edit' && !document.querySelector('.modal-bg, .cook') && !userIsTyping()) render(); else { S.lanDirty = true; refreshLanBits(); }
   } else if (S.view === 'settings' || S.view === 'list') refreshLanBits();
 }
 // server side
@@ -1353,6 +1460,7 @@ function lanChip() {
   const last = peers.filter(p => p.lastSync).sort((a, b) => b.lastSync - a.lastSync)[0];
   const busy = LAN.busy.size > 0;
   const label = busy ? '⇄ ' + tx('synchronizuję…') : last ? '⇄ ' + last.name + ' · ' + new Date(last.lastSync).toLocaleTimeString(uiLocale(), { hour: '2-digit', minute: '2-digit' }) : '⇄ ' + tx('szukam urządzeń…');
+  if (S.lanDirty && !busy) return h('button', { class: 'lanchip', title: tx('Pokaż zmiany z drugiego urządzenia'), onclick: () => { S.lanDirty = false; render(); } }, '⇄ ' + tx('nowe zmiany · odśwież'));
   return h('button', { class: 'lanchip', title: tx('Synchronizacja w domu (Wi-Fi)'), onclick: () => goto('settings') }, label);
 }
 function refreshLanBits() {
@@ -1688,11 +1796,12 @@ function loadScript(url) {
   return LIBS[url];
 }
 const CDN = {
-  pdf: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js',
-  pdfw: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js',
-  mammoth: 'https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js',
-  h2c: 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js',
-  jspdf: 'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js',
+  // bundled with the app (vendor/), so they work offline and cannot be swapped on a CDN
+  pdf: 'vendor/pdf.min.js',
+  pdfw: 'vendor/pdf.worker.min.js',
+  mammoth: 'vendor/mammoth.browser.min.js',
+  h2c: 'vendor/html2canvas.min.js',
+  jspdf: 'vendor/jspdf.umd.min.js',
 };
 async function readFile(file) {
   const name = (file.name || '').toLowerCase();
@@ -1701,7 +1810,7 @@ async function readFile(file) {
   if (name.endsWith('.pdf')) {
     await loadScript(CDN.pdf);
     const lib = window.pdfjsLib; lib.GlobalWorkerOptions.workerSrc = CDN.pdfw;
-    const pdf = await lib.getDocument({ data: await file.arrayBuffer() }).promise;
+    const pdf = await lib.getDocument({ data: await file.arrayBuffer(), isEvalSupported: false }).promise; // isEvalSupported:false closes CVE-2024-4367
     let text = '';
     for (let p = 1; p <= Math.min(pdf.numPages, 40); p++) {
       const pg = await pdf.getPage(p); const c = await pg.getTextContent();
@@ -1760,6 +1869,7 @@ function softRender() {
 
 // ================= RENDER =================
 function render() {
+  S.lanDirty = false;
   document.documentElement.lang = uiLang();
   document.title = 'Cooking Assistant';
   app.innerHTML = '';
