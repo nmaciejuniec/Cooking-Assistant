@@ -2461,7 +2461,7 @@ async function scheduleTimerNote(t) {
 }
 function cancelTimerNote(t) { const N = notifyPlugin(); if (N) N.cancel({ notifications: [{ id: t.nid }] }).catch(() => { }); }
 function addTimer(label, seconds, stepKey, start) {
-  const t = { id: uid(), nid: Math.floor(Math.random() * 1e9), label, total: seconds, left: seconds, running: false, endAt: 0, stepKey };
+  const t = { id: uid(), nid: Math.floor(Math.random() * 1e9), label, total: seconds, left: seconds, running: false, endAt: 0, stepKey, done: false };
   TIMERS.list.push(t); if (start) startTimer(t); ensureTick(); return t;
 }
 function startTimer(t) { t.endAt = Date.now() + t.left * 1000; t.running = true; scheduleTimerNote(t); ensureTick(); }
@@ -2475,7 +2475,7 @@ function ensureTick() {
     for (const t of TIMERS.list) {
       if (t.running && timerLeft(t) <= 0) { t.running = false; t.left = 0; t.done = true; ring(t); }
       const el = document.querySelector('.tchip[data-id="' + t.id + '"]');
-      if (el) { const l = timerLeft(t); el.querySelector('.tv').textContent = fmtClock(l); el.classList.toggle('hot', (t.running && l <= 10) || t.done); }
+      if (el) { const l = timerLeft(t); el.querySelector('.tv').textContent = fmtClock(l); el.classList.toggle('hot', !!((t.running && l <= 10) || t.done)); }
     }
   }, 250);
 }
