@@ -2551,7 +2551,25 @@ const VOICE = { on: false, speaking: false, awaitUntil: 0, poll: null, handlers:
 function voicePlugins() { return NATIVE === 'android' ? { SR: CAP('SpeechRecognition'), TTS: CAP('TextToSpeech') } : {}; }
 function voiceAvailable() { const p = voicePlugins(); return !!(p.SR && p.TTS); }
 const WAKE_RE = /\b(?:hej|hey|hi|ej|haj|hejka)?\s*(?:cooking|kuking|kukin|cookin|koking|kooking|kukink|cukin|kucin)\s*(?:asystent\w*|assistant\w*|assistent\w*|asistent\w*|assist)\b/;
+// "set timer for 5 minutes", "minutnik na pięć minut", "sæt timer på 10 minutter"
+const NUMW = { jeden: 1, jedna: 1, jedno: 1, jedną: 1, dwa: 2, dwie: 2, trzy: 3, cztery: 4, piec: 5, szesc: 6, siedem: 7, osiem: 8, dziewiec: 9, dziesiec: 10, jedenascie: 11, dwanascie: 12, trzynascie: 13, czternascie: 14, pietnascie: 15, szesnascie: 16, siedemnascie: 17, osiemnascie: 18, dziewietnascie: 19, dwadziescia: 20, trzydziesci: 30, czterdziesci: 40, piecdziesiat: 50, szescdziesiat: 60,
+  one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, fifteen: 15, twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60,
+  en: 1, et: 1, to: 2, tre: 3, fire: 4, fem: 5, seks: 6, syv: 7, otte: 8, ni: 9, ti: 10, elleve: 11, tolv: 12, femten: 15, tyve: 20, tredive: 30, fyrre: 40, halvtreds: 50, tres: 60 };
+function voiceDuration(text) {
+  let t = ' ' + normalize(text).replace(/[^a-z0-9.,æøå ]/g, ' ').replace(/\s+/g, ' ') + ' ';
+  if (/ (pol godziny|half an hour|en halv time|halv time) /.test(t)) return 1800;
+  t = t.replace(/ ([a-zæøå]+)(?= )/g, (m, w) => NUMW[w] != null ? ' ' + NUMW[w] : m).replace(/ ([2-6]0) ([1-9])(?= )/g, (m, a, b) => ' ' + (+a + +b));
+  let sec = 0;
+  const hh = t.match(/ (\d+(?:[.,]5)?) ?(h|godz\w*|hour\w*|time|timer)(?= )/), mm = t.match(/ (\d+(?:[.,]5)?) ?(min\w*)(?= )/), ss = t.match(/ (\d+) ?(s|sek\w*|sec\w*)(?= )/);
+  if (hh) sec += parseFloat(hh[1].replace(',', '.')) * 3600;
+  if (mm) sec += parseFloat(mm[1].replace(',', '.')) * 60;
+  if (ss) sec += +ss[1];
+  if (!sec && / (minute|minut[eay]?|a minute|one minute|et minut|en minut) /.test(t)) sec = 60;
+  if (!sec) { const n = t.match(/ (\d+) /); if (n && +n[1] > 0 && +n[1] <= 240) sec = +n[1] * 60; } // a bare number means minutes
+  return Math.round(sec);
+}
 const VCMD = [
+  ['settimer', { test: t => /\b(minutnik\w*|timer\w*|stoper|nastaw\w*|ustaw\w*|set|saet|odlicz\w*)\b/.test(t) && voiceDuration(t) > 0 }],
   ['next', /\b(dalej|nastepn\w*|kolejn\w*|next|naeste|nest|videre)\b/],
   ['prev', /\b(wstecz|poprzedni\w*|cofnij|wroc|back|previous|tilbage|forrige)\b/],
   ['timer', /\b(start\w*|wlacz\w*|uruchom\w*|odpal\w*|begin|set)\b.*\b(minutnik\w*|timer\w*|stoper)\b|\b(minutnik\w*|timer)\b.*\b(start|wlacz)\b|^\s*(start\w*|startuj|minutnik\w*|timer\w*|stoper|odpal|go)\s*$/],
@@ -2606,10 +2624,12 @@ function voiceHeard(text) {
   let rest = '';
   if (m) { rest = t.slice(m.end).trim(); if (Date.now() > VOICE.awaitUntil) { voiceBeep(true); VOICE.awaitUntil = Date.now() + 7000; voiceShow(tx('Słucham polecenia…')); setTimeout(() => voiceTrans(), 7100); voiceTrans(); } }
   else if (Date.now() < VOICE.awaitUntil) rest = t;
-  else if (voiceFree() && t.split(' ').length <= 4) rest = t;
+  else if (voiceFree() && t.split(' ').length <= 8) rest = t;
   else return;
   const cmd = voiceCommand(rest);
   if (!cmd) return;
+  // without the wake phrase only short phrases count, so conversation does not trigger commands
+  if (!m && Date.now() >= VOICE.awaitUntil && t.split(' ').length > (cmd === 'settimer' ? 8 : 4)) return;
   VOICE.cooldown = Date.now() + 3000; VOICE.awaitUntil = 0;
   if (VOICE.handlers) VOICE.handlers(cmd, rest);
 }
@@ -2790,16 +2810,20 @@ async function cookMode(r) {
     const lead = lang === 'en' ? 'Step ' : lang === 'da' ? 'Trin ' : 'Krok ';
     voiceSpeak(lead + (idx + 1) + '. ' + stepText(steps[idx]) + (ingsTxt ? (lang === 'en' ? ' You need: ' : lang === 'da' ? ' Du skal bruge: ' : ' Potrzebujesz: ') + ingsTxt + '.' : ''));
   };
-  const onVoice = (cmd) => {
+  const onVoice = (cmd, text) => {
     if (!ov.isConnected) return;
     setTimeout(() => voiceTrans(), 0);
     if (cmd === 'next') { voiceShow(tx('dalej')); if (idx < steps.length - 1) { finish(idx); idx++; draw(); voiceBeep(false); } else voiceShow(tx('To jest ostatni krok.')); }
     else if (cmd === 'prev') { voiceShow(tx('wstecz')); if (idx > 0) { idx--; unfinish(idx); draw(); voiceBeep(false); } }
     else if (cmd === 'read') { voiceShow(tx('czytam krok')); readStep(); }
     else if (cmd === 'ings') { voiceShow(tx('składniki')); const list = (stepUse[idx] || []).map(k => (qtyOf(k) + ' ' + names[k]).trim()); voiceSpeak(list.length ? list.join(', ') : (lang === 'en' ? 'No ingredients in this step.' : lang === 'da' ? 'Ingen ingredienser i dette trin.' : 'W tym kroku nie ma składników.')); }
+    else if (cmd === 'settimer') {
+      const sec = voiceDuration(text || '');
+      if (sec) { addTimer(tx('Minutnik') + ' ' + fmtClock(sec), sec, null, true); draw(); voiceBeep(true); voiceShow(tx('minutnik') + ' ' + fmtClock(sec)); }
+    }
     else if (cmd === 'timer') {
-      const key = r.id + ':' + idx, sec = stepSeconds(steps[idx] || '');
-      if (sec && !TIMERS.list.some(x => x.stepKey === key)) { addTimer(stepLabel(idx), sec, key, true); draw(); voiceShow(tx('minutnik') + ' ' + fmtClock(sec)); voiceSpeak((lang === 'en' ? 'Timer started: ' : lang === 'da' ? 'Timer startet: ' : 'Minutnik włączony: ') + Math.round(sec / 60) + ' min'); }
+      const key = r.id + ':' + idx, sec0 = stepSeconds(steps[idx] || ''), sec = ready.has(key) ? ready.get(key) : sec0;
+      if (sec && !TIMERS.list.some(x => x.stepKey === key)) { ready.delete(key); addTimer(stepLabel(idx), sec, key, true); draw(); voiceShow(tx('minutnik') + ' ' + fmtClock(sec)); voiceSpeak((lang === 'en' ? 'Timer started: ' : lang === 'da' ? 'Timer startet: ' : 'Minutnik włączony: ') + Math.round(sec / 60) + ' min'); }
       else voiceSpeak(lang === 'en' ? 'This step has no time.' : lang === 'da' ? 'Dette trin har ingen tid.' : 'Ten krok nie ma czasu.');
     }
     else if (cmd === 'left') {
