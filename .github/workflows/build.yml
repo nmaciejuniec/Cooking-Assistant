@@ -8,8 +8,9 @@ on:
     paths-ignore: ['README.md', 'tests/**', 'scripts/test-links.mjs', '.github/workflows/test-links.yml']
   workflow_dispatch:
 
+# Read-only by default; only the jobs that publish files get write access.
 permissions:
-  contents: write
+  contents: read
 
 # Builds run one after another, so a running Mac build is never cut off by a newer push.
 concurrency:
@@ -21,6 +22,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v5
         with:
           node-version: 22
@@ -61,7 +64,7 @@ jobs:
                   }
               }
               buildTypes {
-                  debug { signingConfig signingConfigs.cookingAssistant }
+                  release { signingConfig signingConfigs.cookingAssistant; minifyEnabled false }
               }
           }
           EOF
@@ -71,9 +74,9 @@ jobs:
         working-directory: android
         env:
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-        run: ./gradlew assembleDebug --no-daemon --stacktrace
+        run: ./gradlew assembleRelease --no-daemon --stacktrace
       - name: Collect APK
-        run: cp android/app/build/outputs/apk/debug/app-debug.apk CookingAssistant.apk
+        run: cp android/app/build/outputs/apk/release/app-release.apk CookingAssistant.apk
       - name: Check the signing key
         run: |
           APKSIGNER="$(ls -d "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)"
@@ -87,12 +90,17 @@ jobs:
         with:
           name: android
           path: CookingAssistant.apk
+          retention-days: 3
 
   release-android:
     needs: android
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
       - uses: actions/download-artifact@v4
         with:
           name: android
@@ -111,6 +119,8 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v5
         with:
           node-version: 22
@@ -133,10 +143,11 @@ jobs:
           cp -R "$APP" dmgroot/
           ln -s /Applications dmgroot/Applications
           hdiutil create -volname "Cooking Assistant" -srcfolder dmgroot -ov -format UDZO CookingAssistant.dmg
-      - name: Add the DMG to the "latest" release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: BUILD_DATE="$(TZ=Europe/Copenhagen date '+%d %b %Y, %H:%M')" bash scripts/release.sh dmg CookingAssistant.dmg
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mac-arm
+          path: CookingAssistant.dmg
+          retention-days: 3
 
   mac-intel:
     # Intel Mac runner
@@ -145,6 +156,8 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v5
         with:
           node-version: 22
@@ -167,7 +180,27 @@ jobs:
           cp -R "$APP" dmgroot/
           ln -s /Applications dmgroot/Applications
           hdiutil create -volname "Cooking Assistant" -srcfolder dmgroot -ov -format UDZO CookingAssistant.dmg
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mac-intel
+          path: CookingAssistant.dmg
+          retention-days: 3
+  release-mac:
+    # Publishes the first Mac build that finished (both make the same universal app).
+    needs: [mac-arm, mac-intel]
+    if: ${{ always() && (needs.mac-arm.result == 'success' || needs.mac-intel.result == 'success') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.mac-arm.result == 'success' && 'mac-arm' || 'mac-intel' }}
+          path: out
       - name: Add the DMG to the "latest" release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: BUILD_DATE="$(TZ=Europe/Copenhagen date '+%d %b %Y, %H:%M')" bash scripts/release.sh dmg CookingAssistant.dmg
+        run: BUILD_DATE="$(TZ=Europe/Copenhagen date '+%d %b %Y, %H:%M')" bash scripts/release.sh dmg out/CookingAssistant.dmg

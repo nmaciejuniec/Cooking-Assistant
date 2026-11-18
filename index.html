@@ -892,7 +892,37 @@ function normalizeRecipe(r) {
   if (o.updatedAt > now + 86400000) o.updatedAt = now;
   if (o.createdAt > o.updatedAt) o.createdAt = o.updatedAt;
   o.aiGenerated = !!o.aiGenerated;
+  if (o.fat != null) { const f = {}; if (typeof o.fat === 'object' && !Array.isArray(o.fat)) for (const [k, v] of Object.entries(o.fat)) { const n = numOrNull(v); if (n != null && k !== '__proto__') f[k] = Math.min(n, now + 86400000); } o.fat = f; }
   return o;
+}
+// per-field edit times: two devices that changed different parts of the same recipe keep both changes
+const REC_META = new Set(['id', 'createdAt', 'updatedAt', 'fat']);
+function fieldTime(r, k) { return r.fat && typeof r.fat[k] === 'number' ? r.fat[k] : (r.updatedAt || 0); }
+function mergeFields(cur, inc) {
+  const out = { id: cur.id, createdAt: Math.min(cur.createdAt || Infinity, inc.createdAt || Infinity) };
+  if (!Number.isFinite(out.createdAt)) out.createdAt = cur.updatedAt || Date.now();
+  const keys = new Set([...Object.keys(cur), ...Object.keys(inc), ...Object.keys(cur.fat || {}), ...Object.keys(inc.fat || {})]);
+  const fat = {}; let changed = false;
+  for (const k of keys) {
+    if (REC_META.has(k) || k.startsWith('_')) continue;
+    const a = fieldTime(cur, k), b = fieldTime(inc, k);
+    const src = b > a ? inc : cur;
+    fat[k] = Math.max(a, b);
+    if (Object.prototype.hasOwnProperty.call(src, k)) out[k] = src[k];
+    if (src === inc && JSON.stringify(cur[k]) !== JSON.stringify(inc[k])) changed = true;
+  }
+  out.fat = fat; out.updatedAt = Math.max(cur.updatedAt || 0, inc.updatedAt || 0);
+  return { r: out, changed };
+}
+function stampFields(prev, nr) {
+  const now = nr.updatedAt, fat = Object.assign({}, (prev && prev.fat) || {});
+  const keys = new Set([...Object.keys(nr), ...Object.keys(prev || {})]);
+  for (const k of keys) {
+    if (REC_META.has(k) || k.startsWith('_')) continue;
+    if (!prev || JSON.stringify(prev[k]) !== JSON.stringify(nr[k])) fat[k] = now;
+    else if (fat[k] == null) fat[k] = prev.updatedAt || now;
+  }
+  nr.fat = fat; return nr;
 }
 function normalizeDeleted(list) { return (Array.isArray(list) ? list : []).filter(d => d && typeof d.id === 'string' && d.id).map(d => ({ id: d.id, at: Math.min(numOrNull(d.at) || 0, Date.now() + 86400000) })).slice(-2000); }
 
@@ -1123,6 +1153,7 @@ async function saveRecipe(r, fromTags) {
   r.updatedAt = Date.now(); if (!r.createdAt) r.createdAt = r.updatedAt;
   const nr = normalizeRecipe(r); if (!nr) throw new Error(tx('Przepis nie ma tytułu'));
   const i = S.recipes.findIndex(x => x.id === nr.id);
+  stampFields(i >= 0 ? S.recipes[i] : null, nr);
   if (i >= 0) S.recipes[i] = nr; else S.recipes.push(nr);
   S.deleted = S.deleted.filter(d => d.id !== r.id);
   persistLocal(); lsSet('cookingAssistant.deleted', S.deleted);
@@ -1163,8 +1194,11 @@ function mergeSync(j) {
     if (!cur) {
       if (localTomb.has(r.id) && localTomb.get(r.id) >= r.updatedAt) continue;
       byId.set(r.id, r); st.added++; r._new = true;
-    } else if ((r.updatedAt || 0) > (cur.updatedAt || 0)) { byId.set(r.id, r); st.updated++; if (!r.image) { delete S.imgs[r.id]; IDB.del(r.id).catch(() => { }); } }
-    else st.same++;
+    } else {
+      const m = mergeFields(cur, r);
+      byId.set(r.id, m.r);
+      if (m.changed) { st.updated++; if (!m.r.image && cur.image) { delete S.imgs[r.id]; IDB.del(r.id).catch(() => { }); } } else st.same++;
+    }
   }
   for (const t of tombs) {
     if (!t || !t.id) continue;
@@ -1174,7 +1208,7 @@ function mergeSync(j) {
   }
   const inImgs = {};
   if (j.images && typeof j.images === 'object' && !Array.isArray(j.images)) for (const [id, d] of Object.entries(j.images)) if (typeof d === 'string' && /^(data:image\/(jpeg|png|webp|gif);base64,|<svg[\s>])/.test(d) && d.length < 15e6) inImgs[id] = d;
-  byId.forEach((r, id) => { if (inImgs[id] && r.image && (r._new || !S.imgs[id] || (incoming.find(x => x && x.id === id) || {}).updatedAt === r.updatedAt)) { S.imgs[id] = inImgs[id]; IDB.set(id, inImgs[id]).catch(() => { }); setImgVer(id, r.image.at); } delete r._new; });
+  byId.forEach((r, id) => { if (inImgs[id] && r.image && (r._new || !S.imgs[id] || ((incoming.find(x => x && x.id === id) || {}).image || {}).at === r.image.at)) { S.imgs[id] = inImgs[id]; IDB.set(id, inImgs[id]).catch(() => { }); setImgVer(id, r.image.at); } delete r._new; });
   S.recipes = Array.from(byId.values());
   S.deleted = Array.from(localTomb, ([id, at]) => ({ id, at })).filter(d => !byId.has(d.id)).slice(-2000);
   persistLocal(); lsSet('cookingAssistant.deleted', S.deleted);
@@ -1183,15 +1217,19 @@ function mergeSync(j) {
     const merged = mine ? clean(mine) : clean(j.assistant);
     if (!Array.isArray(merged.facts)) merged.facts = [];
     merged.facts = merged.facts.filter(f => f && typeof f === 'object' && typeof f.id === 'string' && typeof f.text === 'string');
+    const gone = new Map(); [mine && mine.forgotten, j.assistant.forgotten].forEach(l => (Array.isArray(l) ? l : []).forEach(t => { if (t && typeof t.id === 'string') gone.set(t.id, Math.max(gone.get(t.id) || 0, numOrNull(t.at) || 0)); }));
     if (mine) {
       if ((j.assistant.updatedAt || 0) > (mine.updatedAt || 0)) { merged.people = j.assistant.people || merged.people; merged.shared = j.assistant.shared || merged.shared; merged.updatedAt = j.assistant.updatedAt; }
       const ids = new Set((merged.facts || []).map(f => f.id));
       (Array.isArray(j.assistant.facts) ? j.assistant.facts : []).forEach(f => { if (f && typeof f.id === 'string' && typeof f.text === 'string' && !ids.has(f.id)) merged.facts.push(f); });
     }
+    merged.facts = merged.facts.filter(f => !gone.has(f.id));
+    merged.forgotten = Array.from(gone, ([id, at]) => ({ id, at })).slice(-500);
     lsSet('cookingAssistant.asst', merged); S.asst = null;
   }
   return st;
 }
+function forgetFact(id) { S.asst.facts = S.asst.facts.filter(f => f.id !== id); S.asst.forgotten = (Array.isArray(S.asst.forgotten) ? S.asst.forgotten : []).filter(t => t.id !== id).concat([{ id, at: Date.now() }]).slice(-500); }
 function syncSummary(st) { return tx('Nowe: ') + st.added + ' · ' + tx('zaktualizowane: ') + st.updated + ' · ' + tx('usunięte: ') + st.removed; }
 // ---- settings ----
 async function needKey() {
@@ -1249,6 +1287,18 @@ const LAN = {
   key: null, started: false, busy: new Set(), timer: null, merging: false, changeT: null, err: '',
 };
 function lanSave() { lsSet('cookingAssistant.lan', LAN.cfg); }
+const PEER_ID = /^r[a-z0-9]{6,24}$/;
+function cleanPeers() {
+  if (!LAN.cfg) return;
+  const out = Object.create(null), now = Date.now();
+  for (const [id, p] of Object.entries(LAN.cfg.peers || {})) {
+    if (!PEER_ID.test(id) || !p || typeof p !== 'object') continue;
+    if (!p.lastSync && (p.lastSeen || 0) < now - 86400000) continue; // never verified and not seen for a day
+    out[id] = { name: sStr(p.name).slice(0, 60) || '?', host: typeof p.host === 'string' ? p.host : '', port: numOrNull(p.port) || 0, lastSync: numOrNull(p.lastSync) || 0, lastSeen: numOrNull(p.lastSeen) || 0, lastNote: sStr(p.lastNote).slice(0, 120) };
+  }
+  LAN.cfg.peers = out;
+}
+cleanPeers();
 function lanBridge() {
   if (window.native && window.native.lanStart) return {
     start: o => window.native.lanStart(o), stop: () => window.native.lanStop(),
@@ -1280,7 +1330,7 @@ async function lanKey() {
 }
 async function lanSeal(obj) {
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, await lanKey(), new TextEncoder().encode(JSON.stringify(Object.assign({ net: LAN.cfg.netId }, obj)))));
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, await lanKey(), new TextEncoder().encode(JSON.stringify(Object.assign({ net: LAN.cfg.netId, now: Date.now() }, obj)))));
   const out = new Uint8Array(12 + ct.length); out.set(iv); out.set(ct, 12); return b64e(out);
 }
 async function lanOpen(str) {
@@ -1331,8 +1381,17 @@ function lanDigest() {
   const a = lsGet('cookingAssistant.asst', null);
   return S.recipes.map(r => r.id + ':' + (r.updatedAt || 0)).sort().join(',') + '|' + S.deleted.map(d => d.id + ':' + d.at).sort().join(',') + '|' + (a ? (a.updatedAt || 0) + ':' + ((a.facts || []).length) : '');
 }
-function lanMerge(data) {
+// The other device's clock may be off; its times are moved onto ours before merging (picture versions stay ids).
+function shiftTimes(d, delta) {
+  const sh = v => typeof v === 'number' ? v + delta : v;
+  (d.recipes || []).forEach(r => { if (!r || typeof r !== 'object') return; r.createdAt = sh(r.createdAt); r.updatedAt = sh(r.updatedAt); if (r.fat && typeof r.fat === 'object') for (const k of Object.keys(r.fat)) r.fat[k] = sh(r.fat[k]); });
+  (d.deleted || []).forEach(t => { if (t && typeof t === 'object') t.at = sh(t.at); });
+  if (d.assistant && typeof d.assistant === 'object') { d.assistant.updatedAt = sh(d.assistant.updatedAt); (d.assistant.forgotten || []).forEach(t => { if (t && typeof t === 'object') t.at = sh(t.at); }); }
+  return d;
+}
+function lanMerge(data, skew) {
   if (!data || !Array.isArray(data.recipes)) return { added: 0, updated: 0, removed: 0 };
+  if (Math.abs(skew || 0) > 120000) data = shiftTimes(clean(data), -skew);
   const before = new Map(S.recipes.map(r => [r.id, r.image ? r.image.at : null]));
   LAN.merging = true;
   try { const st = mergeSync({ recipes: data.recipes, deleted: data.deleted, assistant: data.assistant, images: {} }); return st; }
@@ -1346,7 +1405,9 @@ function lanMerge(data) {
 }
 const me = () => ({ id: LAN.cfg.deviceId, name: LAN.cfg.deviceName, netName: LAN.cfg.netName });
 function notePeer(from, patch) {
-  if (!from || !from.id || from.id === LAN.cfg.deviceId) return;
+  if (!from || typeof from.id !== 'string' || !PEER_ID.test(from.id) || from.id === LAN.cfg.deviceId) return;
+  if (typeof from.name !== 'string') from.name = '';
+  from.name = from.name.slice(0, 60);
   const p = LAN.cfg.peers[from.id] = Object.assign(LAN.cfg.peers[from.id] || {}, { name: from.name || (LAN.cfg.peers[from.id] || {}).name || '?' }, patch || {});
   if (from.netName && (!LAN.cfg.netName || LAN.cfg.netName === tx('Wspólna sieć'))) LAN.cfg.netName = from.netName;
   lanSave(); return p;
@@ -1375,7 +1436,7 @@ async function lanHandle(raw) {
     return lanSeal({ t: 'state', from: me(), data: lanLite(), imgs: lanImgs(m.need), want: mine });
   }
   if (m.t === 'push') {
-    const st = lanMerge(m.data); const n = await lanStoreImgs(m.imgs);
+    const st = lanMerge(m.data, (numOrNull(m.now) || Date.now()) - Date.now()); const n = await lanStoreImgs(m.imgs);
     notePeer(from, { lastSync: Date.now(), lastNote: stText(st) || (LAN.cfg.peers[from.id] || {}).lastNote || '' });
     lanAfter(st, n);
     return lanSeal({ t: 'imgs', from: me(), imgs: lanImgs(m.need), want: lanWants() });
@@ -1389,17 +1450,22 @@ async function lanHandle(raw) {
 // client side
 async function lanSyncWith(id, manual) {
   const p = LAN.cfg && LAN.cfg.peers[id]; const br = lanBridge();
-  if (!p || !p.host || !br || LAN.busy.has(id)) return false;
+  if (!p || !(p.host || p.cand) || !br || LAN.busy.has(id)) return false;
   LAN.busy.add(id); refreshLanBits();
+  let host = p.host, port = p.port;
   try {
-    const r1 = await lanOpen(await br.request(p.host, p.port, await lanSeal({ t: 'sync', from: me(), digest: lanDigest(), need: lanWants() })));
+    let r1 = null;
+    const ask = async () => { const r = await lanOpen(await br.request(host, port, await lanSeal({ t: 'sync', from: me(), digest: lanDigest(), need: lanWants() }))); if (!r.from || r.from.id !== id) throw new Error('other device'); return r; };
+    if (p.cand) { const c = p.cand; delete p.cand; host = c.host; port = c.port; try { r1 = await ask(); p.host = host; p.port = port; } catch (e) { host = p.host; port = p.port; if (!host) throw e; } }
+    if (!r1) r1 = await ask();
+    const skew = (numOrNull(r1.now) || Date.now()) - Date.now();
     notePeer(r1.from, { lastSeen: Date.now() });
     if (r1.t === 'same') { notePeer(r1.from, { lastSync: Date.now() }); return true; }
-    let st = lanMerge(r1.data); let n = await lanStoreImgs(r1.imgs);
-    const r2 = await lanOpen(await br.request(p.host, p.port, await lanSeal({ t: 'push', from: me(), data: lanLite(), imgs: lanImgs(r1.want), need: lanWants() })));
+    let st = lanMerge(r1.data, skew); let n = await lanStoreImgs(r1.imgs);
+    const r2 = await lanOpen(await br.request(host, port, await lanSeal({ t: 'push', from: me(), data: lanLite(), imgs: lanImgs(r1.want), need: lanWants() })));
     n += await lanStoreImgs(r2.imgs);
     const give = lanImgs(r2.want);
-    if (Object.keys(give).length) await lanOpen(await br.request(p.host, p.port, await lanSeal({ t: 'give', from: me(), imgs: give })));
+    if (Object.keys(give).length) await lanOpen(await br.request(host, port, await lanSeal({ t: 'give', from: me(), imgs: give })));
     notePeer(r1.from, { lastSync: Date.now(), lastNote: stText(st) || p.lastNote || '' });
     lanAfter(st, n);
     return true;
@@ -1411,7 +1477,7 @@ async function lanSyncWith(id, manual) {
 }
 function lanSyncAll(manual) {
   if (!LAN.cfg || !LAN.started) { if (manual) toast(tx('Synchronizacja w domu działa tylko w aplikacji na Androida i na Maca.'), 4000); return; }
-  const ids = Object.keys(LAN.cfg.peers).filter(id => LAN.cfg.peers[id].host);
+  const ids = Object.keys(LAN.cfg.peers).filter(id => LAN.cfg.peers[id].host || LAN.cfg.peers[id].cand);
   if (manual && !ids.length) toast(tx('Szukam drugiego urządzenia w Wi-Fi… Upewnij się, że ma otwartą aplikację.'), 4000);
   ids.forEach(id => lanSyncWith(id, manual));
 }
@@ -1423,11 +1489,16 @@ async function lanStart() {
       LAN.listening = true;
       br.listen(async (kind, ev) => {
         if (!LAN.cfg) return;
-        if (kind === 'peer' && ev && ev.deviceId && ev.deviceId !== LAN.cfg.deviceId) {
+        if (kind === 'peer' && ev && typeof ev.deviceId === 'string' && PEER_ID.test(ev.deviceId) && ev.deviceId !== LAN.cfg.deviceId && typeof ev.host === 'string' && ev.port > 0 && ev.port < 65536) {
           const known = LAN.cfg.peers[ev.deviceId];
-          const changed = !known || known.host !== ev.host || known.port !== ev.port;
-          LAN.cfg.peers[ev.deviceId] = Object.assign(known || { name: '…' }, { host: ev.host, port: ev.port, lastSeen: Date.now() }); lanSave();
-          if (changed) lanSyncWith(ev.deviceId, false);
+          if (!known) {
+            if (Object.values(LAN.cfg.peers).filter(x => !x.lastSync).length >= 3) return; // ignore floods of unknown devices
+            LAN.cfg.peers[ev.deviceId] = { name: '…', host: '', port: 0, cand: { host: ev.host, port: ev.port }, lastSeen: Date.now() }; lanSave();
+            lanSyncWith(ev.deviceId, false); return;
+          }
+          if (known.host === ev.host && known.port === ev.port) return;
+          known.cand = { host: ev.host, port: ev.port };
+          lanSyncWith(ev.deviceId, false);
         } else if (kind === 'request' && ev && ev.id != null) {
           let out = '';
           try { out = await lanHandle(ev.data); } catch (e) { out = ''; }
@@ -2704,7 +2775,7 @@ function renderAssistant() {
     (m.remembered || []).forEach(rm => {
       const still = S.asst.facts.some(f => f.id === rm.id);
       b.append(h('span', { class: 'memchip' + (still ? '' : ' off') }, '🧠 ' + (still ? tx('Zapamiętano: ') : tx('Cofnięto: ')) + rm.text,
-        still ? h('button', { class: 'iconbtn', style: 'font-size:12px;padding:0 2px', title: tx('Cofnij'), onclick: () => { S.asst.facts = S.asst.facts.filter(f => f.id !== rm.id); persistAsst('prof'); render(); } }, '✕') : null));
+        still ? h('button', { class: 'iconbtn', style: 'font-size:12px;padding:0 2px', title: tx('Cofnij'), onclick: () => { forgetFact(rm.id); persistAsst('prof'); render(); } }, '✕') : null));
     });
     (m.saved || []).forEach(x => {
       const r = getR(x.id); if (!r) return;
@@ -2763,7 +2834,7 @@ function renderAsstProfile() {
     factList.innerHTML = '';
     if (!S.asst.facts.length) { factList.append(h('p', { class: 'hint-small' }, tx('Asystent jeszcze niczego nie zapamiętał. Zapamiętuje trwałe rzeczy, które mu powiesz w rozmowie.'))); return; }
     factList.append(h('ul', { class: 'ing' }, S.asst.facts.map(f => h('li', null, h('span', { class: 'grow' }, (f.who ? f.who + ': ' : '') + f.text),
-      h('button', { class: 'iconbtn', style: 'font-size:14px', title: tx('Usuń'), onclick: () => { S.asst.facts = S.asst.facts.filter(x => x.id !== f.id); persistAsst('prof'); drawFacts(); } }, '✕')))));
+      h('button', { class: 'iconbtn', style: 'font-size:14px', title: tx('Usuń'), onclick: () => { forgetFact(f.id); persistAsst('prof'); drawFacts(); } }, '✕')))));
   };
   drawFacts();
   const newFact = h('input', { type: 'text', placeholder: tx('Dodaj coś do zapamiętania…') });

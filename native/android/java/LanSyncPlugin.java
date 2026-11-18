@@ -13,6 +13,7 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -28,6 +29,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
 
 /**
  * Home Wi-Fi sync: announces this device with Android's NsdManager (Bonjour), finds the other devices of the same
@@ -36,7 +38,9 @@ import java.util.concurrent.Executors;
 @CapacitorPlugin(name = "LanSync")
 public class LanSyncPlugin extends Plugin {
     private static final String TYPE = "_cookassist._tcp";
-    private static final int MAX_FRAME = 64 * 1024 * 1024;
+    private static final int MAX_FRAME = 48 * 1024 * 1024;
+    /** At most this many incoming messages are read at the same time; more connections are closed at once. */
+    private final Semaphore readSlots = new Semaphore(3);
 
     private final ExecutorService pool = Executors.newCachedThreadPool();
     private final Map<String, Socket> pending = new ConcurrentHashMap<>();
@@ -127,7 +131,7 @@ public class LanSyncPlugin extends Plugin {
                 JSObject o = new JSObject();
                 o.put("data", res);
                 call.resolve(o);
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 call.reject("request failed: " + e.getMessage());
             }
         });
@@ -154,6 +158,7 @@ public class LanSyncPlugin extends Plugin {
         while (!srv.isClosed()) {
             try {
                 final Socket s = srv.accept();
+                if (!readSlots.tryAcquire()) { try { s.close(); } catch (IOException ignored) { } continue; }
                 pool.submit(() -> handle(s));
             } catch (IOException e) {
                 if (srv.isClosed()) return;
@@ -163,8 +168,9 @@ public class LanSyncPlugin extends Plugin {
 
     private void handle(Socket s) {
         try {
-            s.setSoTimeout(30000);
-            String data = readFrame(s.getInputStream());
+            s.setSoTimeout(8000); // a sender that goes quiet is dropped quickly
+            String data;
+            try { data = readFrame(s.getInputStream()); } finally { readSlots.release(); }
             final String id = UUID.randomUUID().toString();
             pending.put(id, s);
             JSObject o = new JSObject();
@@ -176,7 +182,7 @@ public class LanSyncPlugin extends Plugin {
                 Socket left = pending.remove(id);
                 if (left != null) try { left.close(); } catch (IOException ignored) { }
             });
-        } catch (Exception e) {
+        } catch (Throwable e) {
             try { s.close(); } catch (IOException ignored) { }
         }
     }
@@ -228,13 +234,27 @@ public class LanSyncPlugin extends Plugin {
         stopAll();
     }
 
+    /** Not listening while the app is in the background; the page starts it again when it is shown. */
+    @Override
+    protected void handleOnPause() {
+        stopAll();
+    }
+
     static String readFrame(InputStream in) throws IOException {
         DataInputStream d = new DataInputStream(new BufferedInputStream(in));
         int n = d.readInt();
         if (n < 0 || n > MAX_FRAME) throw new IOException("frame size");
-        byte[] b = new byte[n];
-        d.readFully(b);
-        return new String(b, StandardCharsets.UTF_8);
+        // memory grows only as data really arrives, so a fake length cannot reserve 48 MB up front
+        ByteArrayOutputStream out = new ByteArrayOutputStream(Math.min(n, 65536));
+        byte[] buf = new byte[65536];
+        int left = n;
+        while (left > 0) {
+            int r = d.read(buf, 0, Math.min(buf.length, left));
+            if (r < 0) throw new IOException("closed early");
+            out.write(buf, 0, r);
+            left -= r;
+        }
+        return new String(out.toByteArray(), StandardCharsets.UTF_8);
     }
 
     static void writeFrame(OutputStream out, String s) throws IOException {

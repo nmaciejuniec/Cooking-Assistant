@@ -29,11 +29,40 @@ ipcMain.handle('anthropic', async (_e, { key, body }) => {
 });
 
 // Downloads a recipe page for the "add from link" feature.
+
+// Recipe pages and pictures may only come from the public internet, never from the home network or this Mac.
+const dns = require('node:dns').promises;
+const netmod = require('node:net');
+function privateIp(ip) {
+  if (netmod.isIPv4(ip)) {
+    const [a, b] = ip.split('.').map(Number);
+    return a === 10 || a === 127 || a === 0 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127) || a >= 224;
+  }
+  const x = ip.toLowerCase();
+  if (x.startsWith('::ffff:')) return privateIp(x.slice(7));
+  return x === '::1' || x === '::' || x.startsWith('fc') || x.startsWith('fd') || x.startsWith('fe8') || x.startsWith('fe9') || x.startsWith('fea') || x.startsWith('feb');
+}
+async function publicUrl(u) {
+  let url; try { url = new URL(String(u)); } catch (e) { return false; }
+  if (!/^https?:$/.test(url.protocol)) return false;
+  const host = url.hostname.replace(/^\[|\]$/g, '');
+  if (/^localhost$|\.local$|\.lan$|\.home$|\.internal$/i.test(host)) return false;
+  try { const addrs = netmod.isIP(host) ? [{ address: host }] : await dns.lookup(host, { all: true }); return addrs.length > 0 && !addrs.some(a => privateIp(a.address)); } catch (e) { return false; }
+}
+async function safeFetch(url, opts) {
+  let u = String(url);
+  for (let i = 0; i < 6; i++) {
+    if (!(await publicUrl(u))) throw new Error('blocked address');
+    const r = await fetch(u, Object.assign({}, opts, { redirect: 'manual' }));
+    if (r.status >= 300 && r.status < 400 && r.headers.get('location')) { u = new URL(r.headers.get('location'), u).toString(); continue; }
+    return r;
+  }
+  throw new Error('too many redirects');
+}
 ipcMain.handle('fetchUrl', async (_e, url) => {
   try {
     if (!/^https?:\/\//i.test(String(url))) return { status: 0, text: '' };
-    const r = await fetch(String(url), {
-      redirect: 'follow',
+    const r = await safeFetch(String(url), {
       headers: {
         'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36',
         'accept': 'text/html,application/xhtml+xml', 'accept-language': 'pl,en;q=0.8,da;q=0.6',
@@ -50,7 +79,7 @@ ipcMain.handle('fetchUrl', async (_e, url) => {
 ipcMain.handle('fetchBinary', async (_e, url) => {
   try {
     if (!/^https?:\/\//i.test(String(url))) return { status: 0 };
-    const r = await fetch(String(url), { redirect: 'follow', headers: { 'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36' } });
+    const r = await safeFetch(String(url), { headers: { 'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36' } });
     if (!r.ok) return { status: r.status };
     const buf = Buffer.from(await r.arrayBuffer());
     if (buf.length > 15000000) return { status: 413 };
@@ -63,8 +92,8 @@ ipcMain.handle('fetchBinary', async (_e, url) => {
 // ---- home Wi-Fi sync: finds other Cooking Assistant devices (Bonjour) and moves encrypted messages over TCP.
 // The page encrypts and decrypts everything; this part never sees recipes in plain form.
 const net = require('node:net');
-const lan = { server: null, bonjour: null, browser: null, pending: new Map(), seq: 0, sender: null, refresh: null };
-const MAX_FRAME = 64 * 1024 * 1024;
+const lan = { server: null, bonjour: null, browser: null, pending: new Map(), seq: 0, sender: null, refresh: null, allowed: new Set() };
+const MAX_FRAME = 48 * 1024 * 1024;
 function frame(str) { const b = Buffer.from(String(str), 'utf8'); const h = Buffer.alloc(4); h.writeUInt32BE(b.length); return Buffer.concat([h, b]); }
 function readFrame(sock, ms) {
   return new Promise((resolve, reject) => {
@@ -73,8 +102,9 @@ function readFrame(sock, ms) {
     const t = setTimeout(() => { end(new Error('timeout')); sock.destroy(); }, ms);
     sock.on('data', (d) => {
       chunks.push(d); got += d.length;
-      if (need < 0 && got >= 4) { need = Buffer.concat(chunks).readUInt32BE(0); if (need > MAX_FRAME) { end(new Error('too big')); sock.destroy(); return; } }
-      if (need >= 0 && got >= 4 + need) end(null, Buffer.concat(chunks).subarray(4, 4 + need).toString('utf8'));
+      if (need < 0 && got >= 4) { const head = Buffer.concat(chunks); chunks.length = 0; chunks.push(head); need = head.readUInt32BE(0); if (need > MAX_FRAME) { end(new Error('too big')); sock.destroy(); return; } }
+      if (need >= 0 && got > 4 + need) { end(new Error('too long')); sock.destroy(); return; }
+      if (need >= 0 && got === 4 + need) end(null, Buffer.concat(chunks).subarray(4).toString('utf8'));
     });
     sock.on('error', (e) => end(e));
     sock.on('close', () => end(new Error('closed')));
@@ -89,16 +119,20 @@ function lanStop() {
 }
 ipcMain.handle('lanStart', async (e, { netId, deviceId }) => {
   lanStop();
+  lan.allowed = new Set();
   lan.sender = e.sender;
   lan.server = net.createServer(async (sock) => {
     try {
-      const data = await readFrame(sock, 30000);
+      sock.setTimeout(8000, () => sock.destroy()); // a sender that goes quiet is dropped quickly
+      const data = await readFrame(sock, 120000);
+      sock.setTimeout(0);
       const id = ++lan.seq;
       const reply = await new Promise((res) => { lan.pending.set(id, res); setTimeout(() => res(null), 90000); if (!lan.sender.isDestroyed()) lan.sender.send('lan-request', { id, data }); });
       lan.pending.delete(id);
       if (reply) sock.end(frame(reply)); else sock.destroy();
     } catch (err) { sock.destroy(); }
   });
+  lan.server.maxConnections = 3; // more are refused, so nobody on the network can pile up memory
   await new Promise((res, rej) => { lan.server.once('error', rej); lan.server.listen(0, res); });
   const port = lan.server.address().port;
   const { Bonjour } = require('bonjour-service');
@@ -108,7 +142,7 @@ ipcMain.handle('lanStart', async (e, { netId, deviceId }) => {
     const t = (svc && svc.txt) || {};
     if (t.n !== netId || !t.d || t.d === deviceId) return;
     const host = (svc.addresses || []).find(a => /^\d+\.\d+\.\d+\.\d+$/.test(a)) || (svc.referer && svc.referer.address);
-    if (host && lan.sender && !lan.sender.isDestroyed()) lan.sender.send('lan-peer', { deviceId: t.d, host, port: svc.port });
+    if (host && lan.sender && !lan.sender.isDestroyed()) { lan.allowed.add(host + ':' + svc.port); lan.sender.send('lan-peer', { deviceId: t.d, host, port: svc.port }); }
   };
   lan.browser = lan.bonjour.find({ type: 'cookassist' }, seen);
   lan.refresh = setInterval(() => { try { lan.browser.update(); } catch (err) { } }, 30000);
@@ -117,6 +151,8 @@ ipcMain.handle('lanStart', async (e, { netId, deviceId }) => {
 ipcMain.handle('lanStop', async () => { lanStop(); return true; });
 ipcMain.on('lanReply', (_e, { id, data }) => { const r = lan.pending.get(id); if (r) r(data ? String(data) : null); });
 ipcMain.handle('lanRequest', async (_e, { host, port, data }) => new Promise((resolve) => {
+  // only devices of this household network that Bonjour found, never any host the page names
+  if (!lan.allowed.has(String(host) + ':' + Number(port))) { resolve({ error: 'unknown device' }); return; }
   const sock = net.connect({ host: String(host), port: Number(port) });
   const t = setTimeout(() => { sock.destroy(); resolve({ error: 'timeout' }); }, 6000);
   sock.once('error', (err) => { clearTimeout(t); resolve({ error: String(err.message) }); });

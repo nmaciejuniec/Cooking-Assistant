@@ -14,6 +14,8 @@ perms = ['android.permission.ACCESS_NETWORK_STATE', 'android.permission.ACCESS_W
 add = ''.join('    <uses-permission android:name="%s" />\n' % x for x in perms if x not in s)
 add += '    <uses-feature android:name="android.hardware.camera" android:required="false" />\n'
 s = s.replace('</manifest>', add + '</manifest>', 1)
+# no Android cloud backup of the app's data (it holds the API key and the pairing secret)
+s = s.replace('android:allowBackup="true"', 'android:allowBackup="false"')
 open(p, 'w').write(s)
 print(s)
 PY
