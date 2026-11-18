@@ -298,7 +298,7 @@ ol.steps li{margin:0 0 12px;padding-left:4px}
 .vbtn.on{background:var(--accent);color:var(--on-accent,#fff);border-color:var(--accent);animation:vglow 2s infinite}
 @keyframes vglow{50%{box-shadow:0 0 0 5px var(--accent-soft)}}
 .vhelp{padding:6px 14px;font-size:14px;color:var(--muted);border-bottom:1px solid var(--line);background:var(--surface)}
-.vtrans{font-size:17px;color:var(--ink);font-weight:600;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vtrans{font-size:17px;color:var(--ink);font-weight:600;margin-bottom:2px;max-height:3em;overflow:hidden}
 .vtrans.rec{color:var(--accent)}
 .vheard{position:fixed;left:50%;bottom:110px;transform:translateX(-50%);background:var(--ink);color:var(--card);border-radius:999px;padding:12px 22px;font-size:20px;font-weight:700;z-index:80;white-space:nowrap}
 .tbar{display:flex;gap:8px;padding:8px 14px;border-bottom:1px solid var(--line);background:var(--surface);overflow-x:auto;flex:none}
@@ -2569,18 +2569,34 @@ function voiceBeep(high) {
 }
 // what the microphone heard, shown under the header so the person can see what speech recognition understood
 function voiceTrans(raw, state) {
-  if (raw != null) VOICE.heard = raw;
+  if (raw != null) {
+    const H = VOICE.hist || (VOICE.hist = []); const a = normalize(raw), b = normalize(H[H.length - 1] || '');
+    if (H.length && (a.startsWith(b) || b.startsWith(a) || Date.now() - (VOICE.lastHeard || 0) < 700)) H[H.length - 1] = raw; else H.push(raw);
+    if (H.length > 3) H.shift(); VOICE.lastHeard = Date.now(); VOICE.heard = raw;
+  }
   if (state) VOICE.state = state;
   const el = document.querySelector('.vtrans'); if (!el) return;
-  el.textContent = (VOICE.state === 'rec' ? '● ' : '○ ') + (VOICE.heard ? tx('Słyszę: ') + '„' + VOICE.heard + '”' : tx('Mów teraz…')) + (VOICE.err ? '   (' + VOICE.err + ')' : '');
+  const H = VOICE.hist || [];
+  el.textContent = (VOICE.state === 'rec' ? '● ' : '○ ') + (Date.now() < (VOICE.awaitUntil || 0) ? '✓ ' + tx('Słucham polecenia…') + '  ' : '') + (H.length ? tx('Słyszę: ') + H.slice().reverse().map(x => '„' + x + '”').join('  ←  ') : tx('Mów teraz…')) + (VOICE.err ? '   (' + VOICE.err + ')' : '');
   el.classList.toggle('rec', VOICE.state === 'rec');
+}
+function wakeMatch(t) {
+  const m = t.match(WAKE_RE); if (m) return { end: m.index + m[0].length };
+  const w = t.split(' '); let pos = 0;
+  const assist = x => /^(?:a|e)?s{1,2}[iy]s{1,2}t|^asys|^asist|^assist|^sistent|^systent/.test(x);
+  const lead = x => /^(?:hej|hey|hi|ej|haj|hejka|hello)$/.test(x) || /^(?:c|k|q|g)(?:o|u|oo|ou|ó)+(?:k|c|ch|g)/.test(x);
+  for (let i = 0; i < w.length; i++) {
+    pos += w[i].length + 1;
+    if (assist(w[i]) && ((i > 0 && lead(w[i - 1])) || (i > 1 && lead(w[i - 2])))) return { end: pos - 1 };
+  }
+  return null;
 }
 function voiceHeard(text) {
   const t = normalize(text).replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
   if (!t || Date.now() < (VOICE.cooldown || 0)) return; // the rest of the same sentence must not run the command twice
-  const m = t.match(WAKE_RE);
+  const m = wakeMatch(t);
   let rest = '';
-  if (m) { rest = t.slice(m.index + m[0].length).trim(); if (Date.now() > VOICE.awaitUntil) { voiceBeep(true); VOICE.awaitUntil = Date.now() + 7000; voiceShow(tx('Słucham polecenia…')); } }
+  if (m) { rest = t.slice(m.end).trim(); if (Date.now() > VOICE.awaitUntil) { voiceBeep(true); VOICE.awaitUntil = Date.now() + 7000; voiceShow(tx('Słucham polecenia…')); setTimeout(() => voiceTrans(), 7100); voiceTrans(); } }
   else if (Date.now() < VOICE.awaitUntil) rest = t; else return;
   const cmd = voiceCommand(rest);
   if (!cmd) return;
